@@ -1,0 +1,297 @@
+-----------------
+-- Author:          Sergey Belomestnykh
+-- Created:         08/2011
+--
+--
+-- Description:
+-- форма для создания окружности заданного радиуса
+kill !!SAPRcircle
+ setup form !!SAPRcircle size 30 4
+ title 'Построение окружности'
+--объявление метода SAPRcircle
+-----------------
+	 text .D 'D' at x0 y0  width 5 is REAL
+	 PATH RIGHT 
+	 HDIST 0.5
+	 OPTION .opt1 'Тип'  width 5
+     OPTION .opt2 '' width 5
+	 OPTION .opt3 ''  width 5 
+	 PARAGRAPH .Message2 width 8 height 1
+	 frame .frame1 'Способ построения' at x0 y1.0
+	 PATH DOWN
+	 VDIST 0
+	 rtog .rt1 'в точке с заданным диаметром' call |!this.vybor('OnePoint')|
+	 rtog .rt2 'по трем точкам' call |!this.vybor('ThreePoint')|
+	 exit
+	 PATH RIGHT
+	 HDIST 1.0
+	 frame .frame2 'Прозрачность' width 12 height 2.9 
+	 toggle .tog1 'установить'
+	 exit 
+	 button .DrawCircle 'Создать' at x0 y4 call |!this.DrawCircle(!this.opt1.Selection(),!this.opt2.Selection(),!this.opt3.Selection())|
+	 PATH RIGHT
+	 HDIST 2.5
+	 button .DelCircle 'Удалить' call |!this.DelCircle()|
+     button .Help 'Справка' call |!this.Help()|
+	 button .Dismiss 'Dismiss' call |!this.Dismiss()| CANCEL
+	 !this.initcall = '!this.circle()'
+exit
+------------------
+Define Method .circle()
+!opt1[1] = 'Solid'
+!opt1[2] = 'Dashed'
+!opt1[3] = 'Dotted'
+!opt1[4] = 'Chained'
+!this.opt1.Dtext = !opt1
+
+!opt2[1] = 'Thin'
+!opt2[2] = 'Medium'
+!opt2[3] = 'Thick'
+!this.opt2.Dtext = !opt2
+
+!opt3[1] = 'Grey'
+!opt3[2] = 'Red'
+!opt3[3] = 'Orange'
+!opt3[4] = 'Yellow'
+!opt3[5] = 'Green'
+!opt3[6] = 'Blue'
+!this.opt3.Dtext = !opt3
+
+!!Dx = !this.D
+
+!!q = !this.tog1
+
+!this.DelCircle.callback  = |!this.DelCircle()|
+Endmethod
+------------------
+Define Method .DrawCircle ( !CurrentOpt1 is STRING , !CurrentOpt2 is STRING , !CurrentOpt3 is STRING )
+-- Проверка на выбор способа построения
+IF ( '$!!OR' EQ '0' ) THEN
+!!ALERT.MESSAGE ('Выбирите способ построения')
+ELSE
+
+	 -- Проверка на нахождение в элементе иерархии VIEW
+	 IF (!!CE.TYPE NEQ 'VIEW') THEN
+	 !!ALERT.MESSAGE ('Перейдите на VIEW...')
+	 RETURN
+	 ENDIF
+	
+	 !!LAYENAME = !!CE.NAME + '/-CIRCLE'
+	 VAR !!LAYEEX EXISTS $!!LAYENAME
+	
+	 IF ( !!LAYEEX EQ 'FALSEA' ) THEN
+	 NEW LAYE $!!LAYENAME
+	 Purpose CIRCLE
+	 NEW VNOTE
+	 ELSE
+	 VNOTE1 OF $!!LAYENAME
+	 ENDIF
+	
+	 -- Выбор способа построения: OnePoint - по одной точке
+	 IF ( '$!!OR' EQ 'OnePoint' ) THEN
+	 Prompt 'Укажите точку...'
+	 Var !Point shpos @
+	 Handle (61,528)
+	 Return
+	 Endhandle
+	 Prompt dis
+	 !PosX1 = REAL(PART(!Point,2))
+	 !PosY1 = REAL(PART(!Point,4))
+
+		 --Проверка на тип линии Thin и формирование переменной для стиля линии
+		 IF !CurrentOpt2 eq 'Thin' THEN
+		 !S =  !CurrentOpt1
+		 ELSE
+		 !S = !CurrentOpt1 & !CurrentOpt2
+		 ENDIF
+
+	 !!CE = VNOT1
+
+		 -- Проверка на пустое значение поля D
+		 !Sif = !!Dx.String() 
+		 IF ( '$!Sif'  eq '' ) THEN
+		 !!ALERT.MESSAGE ('Введите значение диаметра')
+		 ELSE	 
+
+			 -- Построение окружности методом CIRCLE
+			 IF ( $!!q eq OFF ) THEN
+			 NEW CIRCLE
+			 at X $!PosX1 Y $!PosY1
+			 Diameter $!!Dx
+			 NLStyle $!S
+			 NLColour $!CurrentOpt3
+			 VIEW
+
+			 -- Построение окружности методом ARC
+			 ELSEIF ( $!!q eq ON ) THEN
+			 !R = $!!Dx / 2
+			 NEW ARC
+			 TCOD CENT
+		     CPT $!Point
+			 RADI $!R
+			 ASUB 360
+			 NLStyle $!S
+			 NLColour $!CurrentOpt3 
+			 VIEW
+			 ENDIF
+		
+		 ENDIF
+
+	 -- Выбор способа построения: ThreePoint - по трем точкам
+	 ELSEIF ( '$!!OR' EQ 'ThreePoint' ) THEN
+	 -- точка 1
+	 Prompt 'Укажите первую точку'
+	 Var !Point1 shpos @
+	 Handle (61,528)
+     Return 
+     Endhandle
+	 Prompt dis 	
+	 !PosX1 = REAL(PART(!Point1,2))
+	 !PosY1 = REAL(PART(!Point1,4)) 
+	 -- точка 2
+	 Prompt 'Укажите вторую точку'	
+	 Var !Point2 shpos @
+	 Handle (61,528)
+     Return 
+     Endhandle
+	 Prompt dis
+	 !PosX2 = REAL(PART(!Point2,2))
+	 !PosY2 = REAL(PART(!Point2,4))	
+	 -- точка 3
+	 Prompt 'Укажите третью точку'
+	 Var !Point3 shpos @
+     Handle (61,528)
+     Return 
+     Endhandle
+	 Prompt dis
+	 !PosX3 = REAL(PART(!Point3,2))
+	 !PosY3 = REAL(PART(!Point3,4))
+
+		 --Проверка на тип линии Thin и формирование переменной для стиля линии
+		 IF !CurrentOpt2 eq 'Thin' THEN
+		 !S =  !CurrentOpt1
+		 ELSE
+		 !S = !CurrentOpt1 & !CurrentOpt2
+		 ENDIF
+
+	 !!CE = VNOT1
+
+		 -- Построение треугольника по трем точкам (для проверки правильности построения окружности по трем точкам)
+		 -- NEW STRAIGHT Fpt X $!PosX1 Y $!PosY1 Tpt X $!PosX2 Y $!PosY2
+		 -- NEW STRAIGHT Fpt X $!PosX2 Y $!PosY2 Tpt X $!PosX3 Y $!PosY3
+		 -- NEW STRAIGHT Fpt X $!PosX3 Y $!PosY3 Tpt X $!PosX1 Y $!PosY1
+
+		 -- Условие непопадения трех точек на одну прямую
+		 IF (( $!PosX3 - $!PosX2 ) * ( $!PosY2 - $!PosY1 ) - ( $!PosX2 - $!PosX1 ) * ( $!PosY3 - $!PosY2 ))  NEQ 0 THEN
+		 -- Вычисление координат центра окружности и диаметра (данные выражения получаются из решения системы трех уравнений, составленных из уравнению окружности x^2+y^2=R^2, для трех точек, задаваемых пользователем)
+		 !PosXr = ( ( $!PosX3 * $!PosX3 + $!PosY3 * $!PosY3 - $!PosX2 * $!PosX2 - $!PosY2 * $!PosY2 ) * ( 2 * $!PosY2 - 2 * $!PosY1 ) - ( $!PosX2 * $!PosX2 + $!PosY2 * $!PosY2 - $!PosX1 * $!PosX1 - $!PosY1 * $!PosY1 ) * ( 2 * $!PosY3 - 2 * $!PosY2 ) ) / ( ( 2 * $!PosX3 - 2 * $!PosX2 ) * ( 2 * $!PosY2 - 2 * $!PosY1 ) - ( 2 * $!PosX2 - 2 * $!PosX1 ) * ( 2 * $!PosY3 - 2 * $!PosY2 ) )
+		 !PosYr = ( ( $!PosX3 * $!PosX3 + $!PosY3 * $!PosY3 - $!PosX2 * $!PosX2 - $!PosY2 * $!PosY2 ) * ( 2 * $!PosX2 - 2 * $!PosX1 ) - ( $!PosX2 * $!PosX2 + $!PosY2 * $!PosY2 - $!PosX1 * $!PosX1 - $!PosY1 * $!PosY1 ) * ( 2 * $!PosX3 - 2 * $!PosX2 ) ) / ( ( 2 * $!PosX2 - 2 * $!PosX1 ) * ( 2 * $!PosY3 - 2 * $!PosY2 ) - ( 2 * $!PosX3 - 2 * $!PosX2 ) * ( 2 * $!PosY2 - 2 * $!PosY1 ) ) 
+		 !Rad = power ((( $!PosX1 - !PosXr ) * ( $!PosX1 - !PosXr ) + ( $!PosY1 - !PosYr ) * ( $!PosY1 - !PosYr )), 0.5 )
+
+		 -- Отображение численного значения полученного диаметра на форму (есть проблема с округленгием, т.к. происходит не округление числа до стоых, а отбрасывание)
+		 !X = 2 * (int ( $!Rad ) + int ( ( $!Rad - int ( $!Rad ) ) * 1000 ) / 1000)
+		 !this.Message2.val = 'D = '&'$!X'
+   
+			 -- Построение окружности методом CIRCLE
+			 IF ( $!!q eq OFF ) THEN
+			 !Diam = $!Rad * 2.0
+			 NEW CIRCLE
+			 at X $!PosXr Y $!PosYr
+			 Diameter $!Diam
+			 NLStyle $!S
+			 NLColour $!CurrentOpt3
+			 VIEW
+			 -- Построение окружности методом ARC
+			 ELSEIF ( $!!q eq ON ) THEN
+			 NEW ARC
+			 TCOD CENT
+			 CPT X $!PosXr mm Y $!PosYr mm
+			 RADI $!Rad
+			 ASUB 360
+			 NLStyle $!S
+			 NLColour $!CurrentOpt3
+			 VIEW
+			 ENDIF
+         
+		 ELSE
+		 !!ALERT.MESSAGE ('Недопустимое раcположение точек')
+		 VIEW
+		 ENDIF
+    
+	 ENDIF
+
+ENDIF
+
+VIEW
+
+Endmethod 
+
+-----------------
+
+Define Method .DelCircle()
+
+-- Метод pickolet() собирает массив с референтными номерами элементов для удаления
+
+!this.pickcollect()
+
+-- После выбора элементов для удаления возвращаемся в данное место программы
+
+!ANS = !!Alert.Confirm('Вы уверены, что хотите удалить выделенные элементы?')
+
+if ( !ANS eq 'YES' ) then
+     Do !IDlab VALUES !!AR
+     $!IDlab
+	 Delete $!!CE.type
+     Enddo
+     !!AR.Delete()
+Else
+     Do !IDlab VALUES !!AR
+     $!IDlab
+     Unenhance $!IDlab
+     Enddo
+	 Return  
+endif
+
+Endmethod
+
+-----------------
+
+Define Method .pickcollect()
+
+Prompt 'Укажите на виде необходимые элементы'
+!!AR = ARRAY()
+
+Do
+     ID  @
+     Handle (61,528)
+	 Return
+     Endhandle
+     Prompt dis
+     !C = !!CE.REFN
+	
+	 If  ( ( !C.type neq 'ARC' ) and ( !C.type neq 'CIRC') ) Then
+	 !!Alert.Error('Текущий элемент не является элементом окружности или дуги')
+	 Return 
+	 Endif
+	 !!AR.Append(!C)
+     Enhance $!C
+
+ Enddo
+
+Endmethod
+
+-----------------
+
+Define Method .Help()
+syscom 'start iexplore U:\Manuals\HELP\SAPRCircle.mht'
+Endmethod 
+
+-----------------
+
+Define Method .vybor ( !Tech is String )
+!!OR = !Tech
+Endmethod
+
+Define Method .Dismiss ()
+!!OR = '0'
+Endmethod 
