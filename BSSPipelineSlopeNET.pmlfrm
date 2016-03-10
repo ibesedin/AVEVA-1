@@ -1,0 +1,838 @@
+﻿-------------------- ИНФОРМАЦИЯ О ПРОГРАММЕ --------------------
+-- Author:          Sergey Belomestnykh
+-- Created:         7/12/2011
+-- Debugging:
+             -- ИЗМЕНЕНИЯ:
+-- Add: 12.04.2012
+-- Description:
+-- Форма для построения уклонов заданной величины
+
+-- ИСПРАВИТЬ ОШИБКИ В УКЛОНАХ
+-- функция удаление уклонов для отдельного уклона
+		-- процесс тестирования:
+
+-------------------- ОПИСАНИЕ МЕТОДОВ --------------------
+-- 			NAME														 RETURN		DESCRIPTION
+-- CreatePipelineSlope()													-			выбор режима построения (единичный или двойной BRAN)
+-- PipelineSlopeSingleBran()													-			создание уклона на единичном BRAN 
+-- PipelineSlopeBinaryBran()													-			создание уклона на двух BRAN 
+-- DeletePipelineSlopeTee ()													-			удаление уклона на единичном BRAN
+-- SelectElement( STRING , STRING )											ARRAY		выбор элементов
+-- SearchWeld( DBREF )													STRING		поиск шва в спецификации
+-- SlopeValue( STRING ) 													REAL		определние величины уклона
+-- CheckWeld( DBREF ) 													STRING		проверка на наличие сварных швов типа W на уклоняемом участке
+-- CollAndDeleteWes( DBREF )												-			сбор в массив и удаление всех сварных швов типа WES
+-- CheckBran( DBREF , DBREF , DBREF )										STRING		проверка на принадлежность выброанных отводов одному участку
+-- CheckBranFlow( DBREF , DBREF )											ARRAY		проверка на режим построения "по потоку" или "против потока"
+-- ArrayBranMember( DBREF , DBREF , DBREF , DBREF , STRING , STRING )			  	ARRAY		определение номеров отводов в массиве элементов, содержащихся в BRAN
+-- DispElbo2TeeOlet( REAL , REAL , POSITION , POSITION , DBREF , DBREF ,
+-- 					STRING , STRING , STRING )							ARRAY		смещение по вертикали промежуточных элементов и второго отвода с созданием и выравниванием сварных швов
+-- CreateAlignWeld( REAL , REAL , DBREF , DBREF , DBREF , DBREF , DBREF ,
+-- 					DBREF , STRING , STRING )							-			создание и выравнивание сварных швов типа WES на уклоняемом участке
+-- DispNeqTeeOletTubiWes( REAL , REAL , DBREF , DBREF , POSITION , DBREF ,
+--					DBREF , STRING , STRING , STRING )					-			смещение и выравнивание элементов не TEE, OLET, TUBI, WES, содержащихся в BRAN
+-- ShowMeasurements( ARRAY , ARRAY , ARRAY , STRING , STRING , STRING )		 	-			общий метод для простановки измерений
+-- ShowMeasurementsTwoElement()											-			дополнительный метод для простановки измерений между двумя элементами
+-- CloseMeasurements()													-			очищает экран от AID элементов (измерений)
+-- SelectMethod( STRING )													-			выбор метода
+-- Help()																-			запуск справки
+-- Dismiss()															-			выход
+-------------------- ОПРЕДЕЛЕНИЕ ДИЗАЙНА ФОРМЫ --------------------
+ kill !!BSSPipelineSlopeNET
+ setup form !!BSSPipelineSlopeNET Dialog Docking
+ title 'Построение уклонов'
+ 	 !!BSSPipelineSlopeNET.initcall = '!this.BSSPipelineSlopeNET()'
+	 frame .frame1 'Создание уклона' at x0 y0 width 20
+		 rtog .Tog1 tagwidth 4 '0.002' at x0 y0 CALL |!this.SlopeValue('FirstValue')|
+		 PATH RIGHT
+		 HDIST 0.8
+		 rtog .Tog2 tagwidth 4 '0.003' CALL |!this.SlopeValue('SecondValue')|
+		 rtog .Tog3 tagwidth 4 '0.004' CALL |!this.SlopeValue('ThirdValue')|
+		 rtog .Tog4 tagwidth 0 CALL |!this.SlopeValue('UserValue')| text .ValSlope width 5 is REAL
+		 OPTION .OptSlope tagwidth 10 'Направление' at x0 y1 width 4
+		 !OptSlope[1] = 'Down'
+		 !OptSlope[2] = 'Up'
+		 !this.OptSlope.Dtext = !OptSlope
+		 button .CreateSlope at x20 y1 'Создать уклон' width 10 CALL |!this.CreatePipelineSlope()|
+	 exit
+ 	 frame .frame2 'Выравнивание сварных швов' at x0 y3.25 width 20
+		 toggle .Tog5 tagwidth 20 'изменить выравнивание' at x0 y0
+		 button .AlignSlope at x0 y1 'Выравнивание участка' width 15 height 0.6 CALL |!this.AlignPipelineSlope()|		 
+		 OPTION .AlSlope tagwidth 0 at x20 y1 width 8
+		 !AlSlope[1] = 'OnFlow'
+		 !AlSlope[2] = 'AgainstFlow'
+		 !this.AlSlope.Dtext = !AlSlope
+	 exit
+	 frame .frame3 'Высотные отметки' at x0 y6.5 width 20 Height 1.0
+		 button .ShowMeas at x0 y0 'Показать' width 14.5 CALL |!this.ShowMeasurementsTwoElement()|
+		 PATH RIGHT
+		 HDIST 0.5
+		 button .CloseMeas 'Очистить' width 14.5 CALL |!this.CloseMeasurements()|
+		 exit
+
+	 button .DeleteSlope 'Удалить уклон' at x0 y9 width 10 CALL |!this.DeletePipelineSlopeTee()|
+	 HDIST 8
+     button .Help 'Справка' width 6 CALL |!this.Help()|
+	 HDIST 0.25
+	 button .Dismiss 'Выход' width 5 CALL |!this.Dismiss()| CANCEL
+exit
+-------------------- КОНСТРУКТОР --------------------
+Define Method .BSSPipelineSlopeNET()
+	 !!Tr5 = !this.Tog5
+Endmethod
+-------------------- ВЫБОР РЕЖИМА ПОСТРОЕНИЯ (ЕДИНИЧНЫЙ ИЛИ ДВОЙНОЙ BRAN) --------------------
+Define Method .CreatePipelineSlope()
+		 !!Method = 'SingleBran'
+	 IF ( '$!!Method' EQ 'SingleBran' ) THEN
+		 !this.PipelineSlopeSingleBran()
+	 ENDIF
+Endmethod
+-------------------- СОЗДАНИЕ УКЛОНА НА ЕДИНИЧНОМ BRAN --------------------
+Define Method .PipelineSlopeSingleBran()
+	 !ELBO1 = !this.SelectElement( 'первый' , 'отвод' )		$(выбор первого отвода$) $("первый" и "второй" необходимы для формирования строки-подсказки в командной строке$)
+		  IF ( '$!ELBO1[5]' EQ 'FalseElement' ) THEN		$(проверка на ESC$)
+			 RETURN
+		 ENDIF
+	 !ELBO2 = !this.SelectElement( 'второй' , 'отвод' )		$(выбор второго отвода$)
+		 IF ( '$!ELBO2[5]' EQ 'FalseElement' ) THEN		$(проверка на ESC$)
+			 RETURN
+		 ENDIF
+	 -- Проверка на принадлежность отводов одному участку
+	 IF ( !this.CheckBran( $!ELBO1[1] , $!ELBO2[1] , $!ELBO1[2] ) EQ 'FalseBran' ) THEN
+		 RETURN
+	 ENDIF
+	 -- Проверка на наличие уклона
+	 IF ( ABS ( $!ELBO1[4].Up - $!ELBO2[4].Up ) GT 0.09 ) THEN
+		 !!Alert.Error ( 'Выделенный участок уже имеет уклон' )
+		 RETURN
+	 ENDIF
+	 !ResSearchWeld = !this.SearchWeld( $!ELBO1[1] )
+	 !CompSpRef = '$!ResSearchWeld'
+		 --IF ( '$!CompSpRef' EQ 'FalseWes' ) THEN
+		 --	 RETURN
+		 --ENDIF
+	 -- Определние переменной для режима уклона "по потоку" или "против потока"
+	 !NumElem = !this.CheckBranFlow( $!ELBO1[1] , $!ELBO2[1] )
+ --- СОЗДАНИЕ УКЛОНА ПО ПОТОКУ ---
+	 IF ( $!NumElem[1] LT $!NumElem[2] ) THEN
+		 -- Проверка на наличие сварных швов типа W на уклоняемом участке
+		 IF ( !this.CheckWeld( $!ELBO1[2] ) EQ 'FalseWeld' ) THEN
+			 RETURN
+		 ENDIF
+		 -- Смещение значимых элементов и второго отвода
+		 --$p str 119
+		 !NumberElbo = !this.ArrayBranMember( $!ELBO1[1] , $!ELBO2[1] , $!ELBO1[2] , $!ELBO2[2] , 'ElboTeeOlet' , 'SingleBran' )	$(определение номеров отводов в массиве значимых элементов $)
+		 !ELEMforAID = !this.DispElbo2TeeOlet( $!NumberElbo[1] , $!NumberElbo[2] , !ELBO1[4] , !ELBO2[4] , $!ELBO1[2] , $!ELBO2[2] , 'OnFlow' , 'CreateSlope' , 'SingleBran' )	$(смещение значимых элементов и второго отвода$)
+		 -- !ELEMforAID - переменная, которая хранит новые позиции элементов после вертикального смещения
+		 -- Проверка на задание величины уклона
+		 !IndexElemOnFlow = $!NumberElbo[1] + 1		$(IndexElemOnFlow = N+1, т.к. такой индекс в массиве всегда существует $)
+--		 IF ( '$!ELEMforAID[$!IndexElemOnFlow]' EQ 'FalseElement' ) THEN
+--			 RETURN			$(в случае срабатывания защиты в методе DispElbo2TeeOlet элементу ELEMforAID присваивается значение FalseElement $)
+--		 ENDIF
+		 -- Создание и выравнивание сварных швов
+		 !this.CreateAlignWeld( $!NumberElbo[1] , $!NumberElbo[2] , $!CompSpRef , $!ELBO1[3] , $!ELBO1[1] , $!ELBO2[1] , $!ELBO1[2] , $!ELBO2[2] , 'SingleBran' , 'OnFlow' )
+		 -- Смещение и выравнивание НЕ значимых элементов
+		 --$p str 130
+		 !NumberNeTee = !this.ArrayBranMember( $!ELBO1[1] , $!ELBO2[1] , $!ELBO1[2] ,  $!ELBO2[2]  , 'NeqTeeOletTubiWes' , 'SingleBran' )	$(определение номеров отводов в массиве НЕ значимых элементов $)
+		 !this.DispNeqTeeOletTubiWes( $!NumberNeTee[1] , $!NumberNeTee[2] , $!ELBO1[1] , $!ELBO2[1] , !ELBO1[4] , $!ELBO1[2] , $!ELBO2[2] , 'CreateSlope' , 'SingleBran' , 'OnFlow' ) $(смещение и выравнивание НЕ значимых элементов$)
+		 -- Создание AID элементов
+		 !this.ShowMeasurements( !ELBO1 , !ELBO2 , !ELEMforAID , 'true' , 'OnFlow' , 'SingleBran' )
+ --- СОЗДАНИЕ УКЛОНА ПРОТИВ ПОТОКА ---
+	 ELSEIF ( $!NumElem[1] GT $!NumElem[2] ) THEN
+		 -- Проверка на наличие сварных швов типа W на уклоняемом участке
+		 IF ( !this.CheckWeld( $!ELBO1[2] ) EQ 'FalseWeld' ) THEN
+			 RETURN
+		 ENDIF
+		 -- Смещение значимых элементов и второго отвода
+		 !NumberElbo = !this.ArrayBranMember( $!ELBO1[1] , $!ELBO2[1] , $!ELBO1[2] ,  $!ELBO2[2]  , 'ElboTeeOlet' , 'SingleBran' )	$(определение номеров отводов в массиве значимых элементов $)
+		 !ELEMforAID = !this.DispElbo2TeeOlet( $!NumberElbo[2] , $!NumberElbo[1] , !ELBO1[4] , !ELBO2[4] , $!ELBO1[2] , $!ELBO2[2] , 'AgainstFlow' , 'CreateSlope' , 'SingleBran' )	$(смещение значимых элементов и второго отвода$)
+ -- Проверка на задание величины уклона
+		 !IndexElemAgainstFlow = $!NumberElbo[2] + 1	 $(IndexElemAgainstFlow = N+1, т.к. такой индекс в массиве всегда существует $)
+	--	 IF ( '$!ELEMforAID[$!IndexElemAgainstFlow]' EQ 'FalseElement' ) THEN
+	--	 RETURN
+	--	 ENDIF
+		 -- Создание и выравнивние сварных швов
+		 !this.CreateAlignWeld( $!NumberElbo[2] , $!NumberElbo[1] , $!CompSpRef , $!ELBO1[3] , $!ELBO1[1] , $!ELBO2[1] , $!ELBO1[2] , $!ELBO2[2] , 'SingleBran' , 'AgainstFlow' )	$(создание и выравнивание сварных швов$)
+		 -- Смещение и выравнивание НЕ значимых элементов
+		 !NumberNeTee = !this.ArrayBranMember( $!ELBO1[1] , $!ELBO2[1] , $!ELBO1[2] , $!ELBO2[2] , 'NeqTeeOletTubiWes' , 'SingleBran' )	$(определение номеров отводов в массиве НЕ значимых элементов $)
+		 !this.DispNeqTeeOletTubiWes( $!NumberNeTee[2] , $!NumberNeTee[1] , $!ELBO1[1] , $!ELBO2[1] , !ELBO1[4] , $!ELBO1[2], $!ELBO2[2] , 'CreateSlope' , 'SingleBran' , 'AgainstFlow' ) $(смещение и выравнивание НЕ значимых элементов$)
+		 -- Создание AID элементов
+		 !this.ShowMeasurements( !ELBO1 , !ELBO2 , !ELEMforAID , 'true' , 'AgainstFlow' , 'SingleBran' )
+	 ENDIF
+Endmethod
+-------------------- УДАЛЕНИЕ УКЛОНА НА ЕДИНИЧНОМ BRAN --------------------
+Define Method .DeletePipelineSlopeTee()
+	 --!!SlopeValue = 0
+	 !ELBO1 = !this.SelectElement( 'первый' , 'отвод' )		$(выбор первого отвода$)
+		 IF ( '$!ELBO1[5]' EQ 'FalseElement' ) THEN		$(проверка на ESC$)
+			 RETURN
+		 ENDIF
+	 !ELBO2 = !this.SelectElement( 'второй' , 'отвод' )		$(выбор второго отвода$)
+		 IF ( '$!ELBO2[5]' EQ 'FalseElement' ) THEN		$(проверка на ESC$)
+			 RETURN
+		 ENDIF
+	 !LengthElem2 = INT ( !ELBO1[4].distance ( !ELBO2[4] ) )        $(целое значение расстояния от первой до второй точки $)
+		 -- Проверка на отсутствие уклона
+	 IF ( ABS ( $!ELBO1[4].Up - $!ELBO2[4].Up ) LT 0.09 ) THEN		$(0.09 обусловлено точностью хранения данных о координатах элементов$)
+		 !!Alert.Error ( 'Выделенный участок не имеет уклона' )
+		 RETURN
+	 ENDIF
+		 !NumElem = !this.CheckBranFlow( $!ELBO1[1] , $!ELBO2[1] ) $(определение режима уклона "по потоку" или "против потока"$)
+		 !NumberElbo = !this.ArrayBranMember( !ELBO1[1] , !ELBO2[1] , !ELBO1[2] , !ELBO2[2] , 'ElboTeeOlet' , 'SingleBran' )		$(определение номеров отводов в массиве значимых элементов$)
+	 IF ( $!NumElem[1] LT $!NumElem[2] ) THEN
+--- УДАЛЕНИЕ УКЛОНА ПО ПОТОКУ ---
+		 !this.CollAndDeleteWes( $!ELBO1[2] , $!ELBO1[1] , $!ELBO2[1] , 'OnFlow'  )		$(сбор и удаление швов типа WES$)
+		 !this.DispElbo2TeeOlet( $!NumberElbo[1] , $!NumberElbo[2] , !ELBO1[4] , !ELBO2[4] , $!ELBO1[2] , $!ELBO2[2] , 'OnFlow' , 'DeleteSlope' , 'SingleBran' )		$(смещение значимых элементов$)
+		 !NumberNeTee = !this.ArrayBranMember( !ELBO1[1] , !ELBO2[1] , !ELBO1[2] , !ELBO2[2] , 'NeqTeeOletTubiWes' , 'SingleBran' )		$(определение номеров отводов в массиве НЕ значимых элементов$)
+		 --!ELBO1 = $!ELBO1[4]
+		 !this.DispNeqTeeOletTubiWes( $!NumberNeTee[1] , $!NumberNeTee[2] , $!ELBO1[1] , $!ELBO2[1] , !ELBO1[4] , $!ELBO1[2] , $!ELBO2[2] , 'DeleteSlope' , 'SingleBran' , 'OnFlow' )		$(смещение НЕ значимых элементов$)
+		 --$p ELBO14 $!ELBO1[4]
+	 --DispNeqTeeOletTubiWes( !nNeTee is REAL , !mNeTee is REAL , !elem1 is DBREF , !elem2 is DBREF , !elem1position is POSITION , !ownerelement1 is DBREF , !ownerelement2 is DBREF , !MarkOfSlope is STRING , !MarkOfBran is STRING , !DirFlow  is STRING )
+	 ELSEIF ( $!NumElem[1] GT $!NumElem[2] ) THEN
+--- УДАЛЕНИЕ УКЛОНА ПРОТИВ ПОТОКА ---
+	 	 !this.CollAndDeleteWes( $!ELBO1[2] , $!ELBO2[1] , $!ELBO1[1] , 'AgainstFlow' )		$(сбор и удаление швов типа WES$)		 
+		 !this.DispElbo2TeeOlet( $!NumberElbo[2] , $!NumberElbo[1] , !ELBO1[4] , !ELBO2[4] , $!ELBO1[2] , $!ELBO2[2] , 'AgainstFlow' , 'DeleteSlope' , 'SingleBran' )		$(смещение значимых элементов$)
+		 !NumberNeTee = !this.ArrayBranMember( !ELBO1[1] , !ELBO2[1] , !ELBO1[2] , !ELBO2[2] , 'NeqTeeOletTubiWes' , 'SingleBran' )		$(определение номеров отводов в массиве НЕ значимых элементов$)
+		 !this.DispNeqTeeOletTubiWes( $!NumberNeTee[2] , $!NumberNeTee[1] , $!ELBO1[1] , $!ELBO2[1] , !ELBO1[4] , $!ELBO1[2] , $!ELBO2[2] , 'DeleteSlope' , 'SingleBran' , 'AgainstFlow' )		$(смещение НЕ значимых элементов$)
+	 ENDIF
+Endmethod
+-------------------- ВЫБОР ЭЛЕМЕНТОВ --------------------
+Define Method .SelectElement( !NameElem is STRING , !TypeElem is STRING ) is ARRAY
+	 alpha req clear		$(очищает командную строку от команд $)
+ PROMPT off
+	 !TextNameElem = 'Укажите '&'$!NameElem'&' элемент... '
+ PROMPT load escape '$!TextNameElem'
+	 id@		$(выбор элементов по курсору $)
+ HANDLE (61,528)		$(обработка выхода из цикла по ESC $)
+	 !ELEMENT[5] = 'FalseElement'		$(специальная переменная для фильтрации режима ESC $)
+	 RETURN !ELEMENT
+ ENDHANDLE
+ !elemCE = !!CE.refno
+ !ownerelements = !!CE.owner
+ !tube = !!CE.lstube
+ !elemCEPos = pos
+ alpha req clear		$(очищает командную строку от команд $)
+ -- Проверка на тип элемента
+	 IF ( ( '$!TypeElem' EQ 'отвод' ) AND ( TYPE OF CE NEQ 'ELBO' ) ) THEN
+	 !!Alert.Error ( 'Выделенный элемент не является отводом' )
+	 !ELEMENT[5] = 'FalseElement'
+	 RETURN !ELEMENT
+	 ENDIF
+ -- Формирование возвращаемого массива информации об элементе
+ !ELEMENT[1] = $!elemCE
+ !ELEMENT[2] = $!ownerelements
+ !ELEMENT[3] = $!tube
+ !ELEMENT[4] = !elemCEPos
+ --$P elemCEPos $!elemCEPos
+ !ELEMENT[5] = 'TrueElement'
+ 	 RETURN !ELEMENT
+Endmethod
+-------------------- ПОИСК ШВА В СПЕЦИФИКАЦИИ --------------------
+Define Method .SearchWeld( !elemCE is DBREF ) is STRING
+ $!elemCE
+ !DiametrElbo = PARAM[1] of CE
+ !refCE = CE
+ --$p rc $!elemCE diam $!DiametrElbo
+ !Specification = '/NG-WELD-SLOPE'
+ $!Specification
+ VAR !SeleWes COLL ALL WITH ( ANSWER EQ $!DiametrElbo ) FOR CE
+	 !CompSpRefInMethod = '$!SeleWes[1]'
+	 RETURN !CompSpRefInMethod
+Endmethod
+-------------------- ОПРЕДЕЛЕНИЕ ВЕЛИЧИНЫ УКЛОНА --------------------
+Define Method .SlopeValue(!TextSlope is STRING) is REAL
+	 -- !SlopeVal = 0
+	 IF ( '$!TextSlope' EQ 'FirstValue' ) THEN
+		 !SlopeVal = 0.002
+	 ELSEIF ( '$!TextSlope' EQ 'SecondValue' ) THEN
+		 !SlopeVal = 0.003
+	 ELSEIF ( '$!TextSlope' EQ 'ThirdValue' ) THEN
+		 !SlopeVal = 0.004
+	 ELSEIF ( '$!TextSlope' EQ 'UserValue' ) THEN
+		 !SlopeVal = REAL ( '$!this.ValSlope' )
+		 IF ( '$!SlopeVal' EQ '' ) THEN
+		 !SlopeVal = 1000
+		 !!Alert.Error ( 'Величина уклона не задана!' )
+		 ENDIF
+	 ELSE
+		 !SlopeVal = 1000
+		 !!Alert.Error ( 'Величина уклона не задана!' )
+  ENDIF
+  --!!SlopeValue = 0
+  !!SlopeValue = !SlopeVal
+	$p выбран уклон $!!SlopeValue
+  RETURN !!SlopeValue
+Endmethod
+-------------------- ПРОВЕРКА НА НАЛИЧИЕ СВАРНЫХ ШВОВ ТИПА W НА УКЛОНЯЕМОМ УЧАСТКЕ --------------------
+Define Method .CheckWeld( !ownerelements is DBREF ) is STRING
+	 VAR !BranMemberWeld coll all bran mem with ( type EQ 'WELD' ) for $!ownerelements
+	 DO !xWeld from 1 to !BranMemberWeld.size()
+		 $!BranMemberWeld[$!xWeld]
+		 IF ( stype of ce EQ 'WS' ) THEN
+			 !!Alert.Error ( 'На выбранном учаcтке присутствуют сварные швы, которые нужно редактировать вручную.' )
+			 RETURN 'FalseWeld'
+		 ELSE
+		 ENDIF
+	 ENDDO
+		 RETURN 'TrueWeld'
+Endmethod
+-------------------- СБОР В МАССИВ И УДАЛЕНИЕ ВСЕХ СВАРНЫХ ШВОВ ДЛЯ УКЛОНОВ --------------------
+Define Method .CollAndDeleteWes( !ownerelements is DBREF , !Elbo1 is DBREF , !Elbo2 is DBREF , !MarkOfSlope is STRING )
+
+		 VAR !BranElbo coll all bran mem with ( TYPE EQ 'ELBO' ) for $!ownerelements
+		 VAR !BranWeldsWes coll all bran mem with ( ( TYPE EQ 'WELD' ) AND ( COMM OF SPREF EQ 'WES' ) ) for $!ownerelements
+		 VAR !BranMember coll all bran mem with ( TYPE NEQ 'TUBI' ) for $!ownerelements
+
+		 !CountOfBran = !BranMember.size()
+		 !BranMemberRefNoElbo1 = REFNO OF $!Elbo1
+		 !BranMemberRefNOElbo2 = REFNO OF $!Elbo2
+
+		 DO !iW from 1 to $!CountOfBran
+				 !BranMemberRefNo[$!iW] = REFNO OF $!BranMember[$!iW] 
+				 --$p $!BranMemberRefNo[$!iW]
+					 IF ( $!BranMemberRefNo[$!iW] EQ $!BranMemberRefNoElbo1 ) THEN
+						 --$p YES1 $!BranMemberRefNo[$!iW]
+						 !NumberElb1 = $!iW
+					 ENDIF
+					 IF ( $!BranMemberRefNo[$!iW] EQ $!BranMemberRefNoElbo2 ) THEN
+						 --$p YES2 $!BranMemberRefNo[$!iW]
+						 !NumberElb2 = $!iW
+					 ENDIF
+		 ENDDO
+
+		 DO !jW from $!NumberElb1 to $!NumberElb2
+			 $!BranMemberRefNo[$!jW]
+			 !TypeCE = TYPE OF CE
+			 !CommCE = COMM OF SPREF OF CE
+			 IF ( '$!TypeCE' EQ 'WELD' ) AND ( '$!CommCE' EQ 'WES' ) THEN
+				 --$p YES $!BranMemberRefNo[$!jW]
+				 DELETE WELD
+			 ENDIF
+		 ENDDO
+
+		 $(
+		 IF ( $!NumberElbo1 LT $!NumberElbo2 ) THEN
+			 !Weld1 = $!NumberElbo1 + 1
+			 !Weld2 = $!NumberElbo2 - 1
+			 --$P WELD $!Weld1 $!Weld2
+			 DO !yW from $!Weld1 to $!Weld2
+					 $!BranWeldsWes[$!yW]
+					 DELETE WELD
+			 ENDDO
+		 ELSE
+ 			 --!Weld2 = $!NumberElbo1 + 1
+			 --!Weld1 = $!NumberElbo2 - 1	
+			 DO !yW from $!NumberElbo2 to $!NumberElbo1
+					 $!BranWeldsWes[$!yW]
+					 DELETE WELD
+			 ENDDO
+		 ENDIF
+		  $)
+	 $( IF ( '$!MarkOfSlope' EQ 'OnFlow' ) THEN
+			 $p NumberElbo1 $!NumberElbo1
+		 $!BranElbo[$!NumberElbo1]
+		 NEXT
+		 !TypeNext = TYPE OF CE
+		 !COMMNext = COMM OF SPREF
+		 IF ( ( '$!TypeNext' EQ 'WELD' ) AND ( '$!COMMNext' EQ 'WES' ) ) THEN
+			 !Weld1 = $!NumberElbo1 + 1
+			 !Weld2 = $!NumberElbo2 - 1
+			 $p NumberElbo1 $!NumberElbo1  NumberElbo2 $!NumberElbo2 
+			 $p mem1 $!BranMember[$!Weld1] mem2 $!BranMember[$!Weld2]
+			 $p Weld1 $!Weld1 Weld2  $!Weld2
+			 -- $!BranMember[$!Weld1]
+			 -- DELETE WELD
+			 -- $!BranMember[$!Weld2]
+			 -- DELETE WELD
+		 ENDIF
+		 ELSEIF ( '$!MarkOfSlope' EQ 'AgainstFlow' ) THEN
+			 $!NumberElbo2
+			 NEXT
+			 IF ( ( TYPE EQ 'WELD' ) || ( COMM OF SPREF EQ 'WES' ) ) THEN 		 
+				 VAR !BranWeld coll all bran mem with ( ( TYPE EQ 'WELD' ) AND ( COMM OF SPREF EQ 'WES' ) ) for $!ownerelements
+				 VAR !BranMember coll all bran mem with ( TYPE NEQ 'TUBI' ) for $!ownerelements
+				 !Weld1 = $!NumberElbo1 + 1
+				 !Weld2 = $!NumberElbo2 - 1
+			 $p NumberElbo1 $!NumberElbo1  NumberElbo2 $!NumberElbo2 
+			 $p mem1 $!BranMember[$!Weld1] mem2 $!BranMember[$!Weld2]
+			 $p Weld1 $!Weld1 Weld2  $!Weld2
+		 $!BranMember[$!Weld1]
+			 DELETE WELD
+		 $!BranMember[$!Weld2]
+			 DELETE WELD
+		 ENDIF
+	 $)
+	 -- ENDIF
+		 -- до делать правильный выбор номеров отводов
+	 $( 
+	 IF ( $!Weld1 LT $!Weld2 ) THEN
+		 DO !yW from $!Weld1 to $!Weld2
+			 $!BranWeld[$!yW]
+				 DELETE WELD
+		 ENDDO
+	 ELSE
+		 DO !yW from $!Weld2 to $!Weld1
+			 $!BranWeld[$!yW]
+				 DELETE WELD
+		 ENDDO
+	 ENDIF
+	 $)
+
+Endmethod
+-------------------- ПРОВЕРКА НА ПРИНАДЛЕЖНОСТЬ ВЫБРАННЫХ ОТВОДОВ ОДНОМУ УЧАСТКУ --------------------
+Define Method .CheckBran( !elem1 is DBREF , !elem2 is DBREF , !ownerelements is DBREF ) is STRING
+	 VAR !BranMemberElbo coll all bran mem with ( type EQ 'ELBO' ) for $!ownerelements
+	 -- Определение номеров элементов elem1 и elem2 в сформированном массиве
+	 DO !xEl from 1 to !BranMemberElbo.Size()
+		 $!BranMemberElbo[$!xEl]
+		 IF ( !!CE.refno EQ $!elem1 ) THEN
+			 !nEl = $!xEl
+		 ENDIF
+		 IF ( !!CE.refno EQ $!elem2 ) THEN
+			 !mEl = $!xEl
+		 ENDIF
+	 ENDDO
+	 IF ( ABS ( $!nEl - $!mEl ) NEQ 1 ) THEN
+		 !!Alert.Error ( 'Выделенные отводы не принадлежат одному участку' )
+		 RETURN 'FalseBran'
+	 ELSE
+		 RETURN 'TrueBran'
+	 ENDIF
+Endmethod
+-------------------- ПРОВЕРКА НА РЕЖИМ ПОСТРОЕНИЯ "ПО ПОТОКУ" ИЛИ "ПРОТИВ ПОТОКА" --------------------
+Define Method .CheckBranFlow( !elem1 is DBREF , !elem2 is DBREF ) is ARRAY
+		 !NumElem[1] = REAL ( SUBSTRING ( NAMTYP OF $!elem1 , 7, 2 ) )
+		 !NumElem[2] = REAL ( SUBSTRING ( NAMTYP OF $!elem2 , 7, 2 ) )
+	 RETURN !NumElem
+Endmethod
+-------------------- ОПРЕДЕЛЕНИЕ НОМЕРОВ ОТВОДОВ ИЛИ ДРУГИХ ЭЛЕМЕНТОВ В МАССИВЕ ЭЛЕМЕНТОВ, СОДЕРЖАЩИХСЯ В BRAN --------------------
+Define Method .ArrayBranMember(  !elem1 is DBREF , !elem2 is DBREF , !ownerelement1 is DBREF , !ownerelement2 is DBREF , !typeMethod is STRING , !MarkOfBran is STRING ) is ARRAY
+IF ( '$!MarkOfBran' EQ 'SingleBran' ) THEN
+	 IF ( '$!typeMethod' EQ 'ElboTeeOlet' ) THEN
+		 VAR !BranMember coll all bran mem with ( ( type EQ 'ELBO' ) OR ( type EQ 'TEE' ) OR ( type EQ 'OLET' ) ) for $!ownerelement1
+	 ELSEIF ( '$!typeMethod' EQ 'NeqTeeOletTubiWes' ) THEN 
+		 VAR !BranMember coll all bran mem with ( ( type NEQ 'TUBI' ) AND ( type NEQ 'TEE' ) AND ( type NEQ 'OLET' ) AND ( type NEQ 'WELD' ) ) for $!ownerelement1
+	 ELSEIF ( '$!typeMethod' EQ 'NeqTubi' ) THEN
+		 VAR !BranMember coll all bran mem with ( type NEQ 'TUBI' ) for $!ownerelement1
+	 ENDIF
+	 -- Определение номеров элементов elem1 и elem2 в сформированном массиве
+	 DO !xElbo from 1 to !BranMember.size()
+		 --$p $!typeMethod ArrayBranMemberelem $!xElbo $!BranMember[$!xElbo]
+		 $!BranMember[$!xElbo]
+		 !TypeCE = type of ce
+		 --$p $!TypeCE
+		 IF ( !!CE.refno EQ $!elem1 ) THEN
+			 !nElbo = $!xElbo
+		 ENDIF
+		 IF ( !!CE.refno EQ $!elem2 ) THEN
+			 !mElbo = $!xElbo
+		 ENDIF
+	 ENDDO
+ENDIF
+		 !NumberElbo[1] = $!nElbo
+		 !NumberElbo[2] = $!mElbo
+		 --$P $!typeMethod nElbo $!nElbo mElbo $!mElbo
+	 RETURN !NumberElbo
+Endmethod
+-------------------- СМЕЩЕНИЕ ПО ВЕРТИКАЛИ ПРОМЕЖУТОЧНЫХ ЭЛЕМЕНТОВ И ВТОРОГО ОТВОДА С СОЗДАНИЕМ И ВЫРАВНИВАНИЕМ СВАРНЫХ ШВОВ --------------------
+Define Method .DispElbo2TeeOlet( !nElbo is REAL , !mElbo is REAL , !elem1position is POSITION , !elem2position is POSITION , !ownerelement1 is DBREF , !ownerelement2 is DBREF , !DirFlow  is STRING , !MarkOfSlope is STRING , !MarkOfBran is STRING ) is ARRAY
+-- $p ATTANTION 439 elem1position $!elem1position.Up
+--- СЛУЧАЙ ЕДИНИЧНОГО BRAN ---
+IF ( '$!MarkOfBran' EQ 'SingleBran' ) THEN
+	 VAR !BranMemberTeeOlet coll all bran mem with ( ( type EQ 'ELBO' ) OR ( type EQ 'TEE' ) OR ( type EQ 'OLET' ) ) for $!ownerelement1
+	 -- Смещение по вертикали промежуточных элементов типа TEE и OLET, расположенных между elem1 и elem2 типа ELBO
+		 --- Проверка на задание величины уклона
+		 $p $!MarkOfSlope
+		 IF ( ( '$!MarkOfSlope' EQ 'CreateSlope' ) AND ( $!!SlopeValue EQ 1000 ) ) THEN		$(значение 1000 выбрано ввиду невозможности присвоения переменной типа string и нереалистичности значения уклона '1000' $)
+			 !!Alert.Error ( 'Величина уклона не задана!' )
+			 !ELEMENT[$!nElbo + 1] = 'FalseElement'		$(элемент массива с этим индексом существует всегда $)
+			 RETURN !ELEMENT
+		 ENDIF
+
+		 -- СМЕЩЕНИЕ ПРОМЕЖУТОЧНЫХ ЭЛЕМЕНТОВ
+	 IF ( ( $!mElbo - $!nElbo ) NEQ 1 ) THEN		$(условие для отсеивания случая отсутствия "значимых" промежуточных элементов между отводами $)
+		 DO !yElbo from ( $!nElbo + 1 ) to ( $!mElbo - 1 )
+		 $!BranMemberTeeOlet[$!yElbo]
+			 !elemElboTeeOletPosition = pos
+			 !LengthElboTeeOlet = INT ( !elem1position.distance ( $!elemElboTeeOletPosition ) )
+-- $p ATTANTION 457 elem1position $!elem1position.Up
+			 IF ( '$!MarkOfSlope' EQ 'CreateSlope' ) THEN
+				 !Slope = !LengthElboTeeOlet * $!!SlopeValue
+				 -- Выбор направления смещения промежуточных элементов
+				 IF ( '$!this.OptSlope.Selection(|Rtext|)' EQ 'Up.Selection(|Rtext|)' ) THEN
+					 move by u $!Slope
+				 ELSEIF ( '$!this.OptSlope.Selection(|Rtext|)' EQ 'Down.Selection(|Rtext|)' ) THEN
+					 move by d $!Slope
+				 ENDIF
+			 ELSEIF ( '$!MarkOfSlope' EQ 'DeleteSlope' ) THEN
+				 pos E $!elemElboTeeOletPosition.East N $!elemElboTeeOletPosition.North U $!elem1position.Up
+			 ENDIF
+			 !ELEMCHANGE[$!yElbo] = pos
+		 ENDDO
+	 ENDIF
+
+	 -- СМЕЩЕНИЕ ВТОРОГО ЭЛЕМЕНТА
+	 IF ( '$!MarkOfSlope' EQ 'CreateSlope' ) THEN
+		 !LengthElem2 = INT ( !elem1position.distance ( !elem2position ) )
+		 !SlopeElem2 = !LengthElem2 * $!!SlopeValue
+		 IF ( '$!DirFlow' EQ 'OnFlow' ) THEN
+			 $!BranMemberTeeOlet[$!mElbo]
+		 ELSEIF ( '$!DirFlow' EQ 'AgainstFlow' ) THEN
+			 $!BranMemberTeeOlet[$!nElbo]
+		 ENDIF
+	 	 -- Выбор направления смещения второго элемента
+		 IF ( '$!this.OptSlope.Selection(|Rtext|)' EQ 'Up.Selection(|Rtext|)' ) THEN
+		 move by u $!SlopeElem2
+		 ELSEIF ( '$!this.OptSlope.Selection(|Rtext|)' EQ 'Down.Selection(|Rtext|)' ) THEN
+		 move by d $!SlopeElem2
+		 ENDIF
+		 !ELEMCHANGE[$!mElbo] = pos
+	 ELSEIF ( '$!MarkOfSlope' EQ 'DeleteSlope' ) THEN
+		 IF ( '$!DirFlow' EQ 'OnFlow' ) THEN
+			 $!BranMemberTeeOlet[$!mElbo]
+		 ELSEIF ( '$!DirFlow' EQ 'AgainstFlow' ) THEN
+			 $!BranMemberTeeOlet[$!nElbo]
+		 ENDIF
+
+	 -- ДОБАВЛЕНИЕ РАССТОЯНИЯ МЕЖДУ КРАЙНИМИ ЭЛЕМЕНТАМИ И РАССТОЯНИЯ МЕЖДУ НИМИ
+		 pos E $!elem2position.East N $!elem2position.North U $!elem1position.Up
+		 !elemMPosAid = pos
+		 !elem1NamePos = ' EL. ' + STRING ( INT (  $!elem1position.up ) )
+		 !elem2NamePos = ' EL. ' + STRING ( INT ( $!elemMPosAid.up ) )
+		 aid text '$!elem1NamePos' at $!elem1position
+		 aid text '$!elem2NamePos' at $!elemMPosAid
+		 IF ( ( $!mElbo - $!nElbo ) EQ 1 ) THEN $(указывает на отсутствие "значимых" промежуточных элементов между отводами, необходимо, чтобы метод не возвращал пустой массив$)
+			 RETURN
+		 ENDIF
+	 ENDIF
+--!ELEMCHANGE.Sort()
+RETURN !ELEMCHANGE
+Endmethod
+-------------------- СОЗДАНИЕ И ВЫРАВНИВАНИЕ СВАРНЫХ ШВОВ ДЛЯ УКЛОНОВ НА УКЛОНЯЕМОМ УЧАСТКЕ --------------------
+Define Method .CreateAlignWeld( !nElbo is REAL , !mElbo is REAL , !CompSpRef is DBREF , !tube is DBREF , !elem1 is DBREF , !elem2 is DBREF , !ownerelement1 is DBREF , !ownerelement2 is DBREF , !MarkOfBran is STRING , !DirFlow  is STRING )
+IF ( '$!MarkOfBran' EQ 'SingleBran' ) THEN	
+	 forw
+	 VAR !BranMemberTeeOlet coll all bran mem with ( ( type EQ 'ELBO' ) OR ( type EQ 'TEE' ) OR ( type EQ 'OLET' ) ) for $!ownerelement1
+	 $!BranMemberTeeOlet[$!nElbo]
+		 --$p $!nElbo $!BranMemberTeeOlet[$!nElbo]
+		 forw
+		 new weld Spref $!CompSpRef
+		 conn to prev
+		 lstube $!tube
+		 !weld1 = !!CE.refno
+ 	 $!BranMemberTeeOlet[$!mElbo]
+		 back
+		 new weld Spref $!CompSpRef
+		 conn to prev
+		 lstube $!tube
+		 arrive 2
+		 leave 1
+		 !weld2 = !!CE.refno
+ 		 !weldYB = ARRAY()
+		 !weldYF = ARRAY()
+	 -- Создание сварных швов на промежуточных элементах типа TEE и OLET
+	 DO !yElbo from ( $!nElbo + 1 ) to ( $!mElbo - 1 )
+		 $!BranMemberTeeOlet[$!yElbo]
+		 back
+		 new weld Spref $!CompSpRef
+		 conn to prev
+		 lstube $!tube
+		 arrive 2
+		 leave 1
+		 forw
+		 !weldYB[$!yElbo] = !!CE.refno
+		 $!BranMemberTeeOlet[$!yElbo]
+		 forw
+		 new weld Spref $!CompSpRef
+		 conn to prev
+		 lstube $!tube
+		 !weldYF[$!yElbo] = !!CE.refno
+	 ENDDO
+	 -- Выравнивание созданных сварных швов
+ 	 	 $!weld1
+		 forw
+		 dir to next weld
+
+		  DO !yElbo from ( $!nElbo + 1 ) to ( $!mElbo - 1 )
+		  $!weldYB[$!yElbo]
+		  back
+		  dir to next weld
+		  forw 
+		  $!weldYF[$!yElbo]
+		  forw
+		  dir to next weld	 
+		  ENDDO
+
+		 $!weld2
+		 back
+		 dir to next weld
+		 forw
+
+		 IF ( $!!Tr5 EQ false ) THEN
+			 $!weld1
+				 ANGLE 0
+			 $!weld2
+				 ANGLE 0
+
+			 DO !yElbo from ( $!nElbo + 1 ) to ( $!mElbo - 1 )
+				 $!weldYB[$!yElbo]
+					 ANGLE 0
+				 $!weldYF[$!yElbo]	 
+					 ANGLE 0
+			 ENDDO
+		  ENDIF
+		 $( 	 	 $!weld1
+			 ANGLE 0		 
+		 DO !yElbo from ( $!nElbo + 1 ) to ( $!mElbo - 1 )
+		 $!weldYB[$!yElbo]
+			 ANGLE 0
+		 $!weldYF[$!yElbo]
+			 ANGLE 0
+		 ENDDO
+ 		 $!weld2
+			 ANGLE 0		 
+  	 	 $!weld1
+		 forw
+		 dir to next weld 
+		 DO !yElbo from ( $!nElbo + 1 ) to ( $!mElbo - 1 )
+		 $!weldYB[$!yElbo]
+		 back
+		 dir to next weld
+		 forw 
+		 $!weldYF[$!yElbo]
+		 forw
+		 dir to next weld	 
+		 ENDDO
+		 $!weld2
+		 back
+		 dir to next weld
+		 forw	 $)
+ENDIF
+Endmethod
+-------------------- СМЕЩЕНИЕ И ВЫРАВНИВАНИЕ ЭЛЕМЕНТОВ НЕ TEE, OLET, TUBI, WES СОДЕРЖАЩИХСЯ В BRAN --------------------
+Define Method .DispNeqTeeOletTubiWes( !nNeTee is REAL , !mNeTee is REAL , !elem1 is DBREF , !elem2 is DBREF , !elem1position is POSITION , !ownerelement1 is DBREF , !ownerelement2 is DBREF , !MarkOfSlope is STRING , !MarkOfBran is STRING , !DirFlow  is STRING )
+IF ( '$!MarkOfBran' EQ 'SingleBran' ) THEN
+	 VAR !BranMember coll all bran mem with ( ( type NEQ 'TUBI' ) AND ( type NEQ 'TEE' ) AND ( type NEQ 'OLET' ) AND ( type NEQ 'WELD' ) ) for $!ownerelement1
+	 DO !yNeTee from ( $!nNeTee + 1 ) to ( $!mNeTee - 1 )
+	 $!BranMember[$!yNeTee]
+		 !elemTeePosition = pos
+		 !LengthTee = INT ( !elem1position.distance ( !elemTeePosition ) )
+		 IF ( $!!SlopeValue EQ 1000 ) THEN
+		 !!Alert.Error ( 'Величина уклона не задана!' )
+			 RETURN
+		 ENDIF
+		 !SlopeTee = !LengthTee * $!!SlopeValue
+ 		 IF ( '$!MarkOfSlope' EQ 'CreateSlope' ) THEN
+			 !Slope = !LengthTee * $!!SlopeValue
+			 -- Выбор направления смещения промежуточных элементов
+			 IF ( '$!this.OptSlope.Selection(|Rtext|)' EQ 'Up.Selection(|Rtext|)' ) THEN
+				 move by u $!Slope
+			 ELSEIF ( '$!this.OptSlope.Selection(|Rtext|)' EQ 'Down.Selection(|Rtext|)' ) THEN
+				 move by d $!Slope
+			 ENDIF
+			 $!BranMember[$!yNeTee]
+			 !elemTeePosPos = pos
+			 orient ce to next weld
+			 pos $!elemTeePosPos
+		 ELSEIF ( '$!MarkOfSlope' EQ 'DeleteSlope' ) THEN
+			 $!BranMember[$!yNeTee]
+			 pos E $!elemTeePosition.East N $!elemTeePosition.North U $!elem1position.Up
+			 --			 $!BranMember[$!yNeTee]
+			 !elemTeePosPos = pos
+			 orient ce to next
+			 pos $!elemTeePosPos
+		 ENDIF
+	 ENDDO
+ENDIF
+Endmethod
+-------------------- ОБЩИЙ МЕТОД ДЛЯ ПРОСТАНОВКИ ВЫСОТНЫХ ОТМЕТОК --------------------
+Define Method .ShowMeasurements( !ELEM1 is ARRAY , !ELEM2 is ARRAY , !ELEMforAID is ARRAY , !Meas is STRING , !AidFlow is STRING , !MarkOfBran is STRING )
+IF ( '$!Meas' NEQ 'true' ) THEN
+	 !ELEM1 = !this.SelectElement( 'первый' , 'не отвод' )
+
+	  	 IF ( '$!ELEM1[5]' EQ 'FalseElement' ) THEN
+			 RETURN
+		 ENDIF
+	 !ELEM2 = !this.SelectElement( 'второй' , 'не отвод' )
+
+		 IF ( '$!ELEM2[5]' EQ 'FalseElement' ) THEN
+			 RETURN
+		 ENDIF
+ENDIF
+IF ( '$!AidFlow' NEQ 'TwoElem' ) AND ( '$!MarkOfBran' EQ 'SingleBran' ) THEN
+	 !NumberElem = !this.ArrayBranMember( $!ELEM1[1] , $!ELEM2[1] , $!ELEM1[2] , $!ELEM2[2] , 'ElboTeeOlet' , 'SingleBran' )	$(определение номеров отводов в массиве значимых элементов $)
+	 !nMeas = $!NumberElem[1]
+	 !mMeas = $!NumberElem[2]
+ENDIF
+	 -- Формирование и вставка надписи на первый отвод (с неизменной высотной отметкой)
+		 !elem1NamePosMeas = ' EL. ' + STRING ( INT ( !ELEM1[4].up ) )
+		 aid text '$!elem1NamePosMeas' at $!ELEM1[4]
+		 aid SPHERE $!ELEM1[4] diam 10
+		 aid text '$!elem1NamePosMeas' at $!ELEM1[4]
+IF ( '$!MarkOfBran' EQ 'SingleBran' ) THEN
+		 -- Формирование и вставка надписи на промежуточные элементы и второй отвод
+	 IF ( '$!Meas' EQ 'true' ) THEN
+		 IF ( '$!AidFlow' EQ 'OnFlow' ) THEN						$(по потоку$)
+			 !elem2NamePosMeas = ' EL. ' + STRING ( INT ( !ELEMforAID[$!mMeas].up ) )
+			 aid text '$!elem2NamePosMeas' at $!ELEMforAID[$!mMeas]
+			 -- Вставка AID элементов для обозначения расстояния Distance между точками p0 отводов
+			 !LengthMeas = INT ( !ELEM1[4].distance ( !ELEMforAID[$!mMeas] ) )		$(целое значение расстояния от первой до второй точки $)
+			 !name = 'Distance: ' + STRING ( !LengthMeas )
+			 !midpos = !ELEM1[4].midpoint ( !ELEMforAID[$!mMeas] )
+			 aid line $!ELEM1[4] to $!ELEMforAID[$!mMeas]
+			 aid text '$!name' at $!midpos
+			 aid SPHERE $!ELEMforAID[$!mMeas] diam 10
+			 aid text '$!elem2NamePosMeas' at $!ELEMforAID[$!mMeas]		 
+				 DO !XTee from ( $!nMeas + 1 ) to ( $!mMeas - 1 ) 
+				 !elemTeeNamePosMeas[$!XTee] = ' EL. ' + STRING ( INT ( !ELEMforAID[$!XTee].up ) )
+				 aid text '$!elemTeeNamePosMeas[$!XTee]' at $!ELEMforAID[$!XTee]
+				 ENDDO
+		 ELSEIF	( '$!AidFlow' EQ 'AgainstFlow' ) THEN					$(против потока$)
+			 !elem2NamePosMeas = ' EL. ' + STRING ( INT ( !ELEMforAID[$!nMeas].up ) )
+			 aid text '$!elem2NamePosMeas' at $!ELEMforAID[$!nMeas]
+			 -- Вставка AID элементов для обозначения расстояния Distance между точками p0 отводов
+			 !LengthMeas = INT ( !ELEM1[4].distance ( !ELEMforAID[$!nMeas] ) )		$(целое значение расстояния от первой до второй точки $)
+			 !name = 'Distance: ' + STRING ( !LengthMeas )
+			 !midpos = !ELEM1[4].midpoint ( !ELEMforAID[$!nMeas] )
+			 aid line $!ELEM1[4] to $!ELEMforAID[$!nMeas]
+			 aid text '$!name' at $!midpos
+			 aid SPHERE $!ELEMforAID[$!nMeas] diam 10
+			 aid text '$!elem2NamePosMeas' at $!ELEMforAID[$!nMeas]
+				 DO !XTee from ( $!mMeas + 1 ) to ( $!nMeas - 1 )
+				 !elemTeeNamePosMeas[$!XTee] = ' EL. ' + STRING ( INT ( !ELEMforAID[$!XTee].up ) )
+				 aid text '$!elemTeeNamePosMeas[$!XTee]' at $!ELEMforAID[$!XTee]
+				 ENDDO
+		 ENDIF
+	 ELSEIF ( '$!Meas' EQ 'false' ) THEN
+		 !elem2NamePosMeas = ' EL. ' + STRING ( INT ( !ELEM2[4].up ) )
+		 aid text '$!elem2NamePosMeas' at $!ELEM2[4]	 
+		 aid SPHERE $!ELEM2[4] diam 10	 
+		 aid text '$!elem2NamePosMeas' at $!ELEM2[4]
+		 !LengthMeas = INT ( !ELEM1[4].distance ( !ELEM2[4] ) )		$(целое значение расстояния от первой до второй точки $)
+		 !name = 'Distance: ' + STRING ( !LengthMeas )
+		 !midpos = !ELEM1[4].midpoint ( !ELEM2[4] )
+		 aid line $!ELEM1[4] to $!ELEM2[4]
+		 aid text '$!name' at $!midpos
+	 ENDIF
+ENDIF
+Endmethod
+--------------------  МЕТОД ДЛЯ ПРИНУДИТЕЛЬНОГО ВЫРАВНИВАНИЯ СВАРНЫХ ШВОВ --------------------
+Define Method .AlignPipelineSlope( )
+	 !ELEM1 = !this.SelectElement( 'первый' , 'не отвод' )		$(выбор первого отвода$) $("первый" и "второй" необходимы для формирования строки-подсказки в командной строке$)
+		 IF ( '$!ELEM1[5]' EQ 'FalseElement' ) THEN		$(проверка на ESC$)
+			 RETURN
+		 ENDIF
+	 !ELEM2 = !this.SelectElement( 'второй' , 'не отвод' )		$(выбор второго отвода$)
+		 IF ( '$!ELEM2[5]' EQ 'FalseElement' ) THEN		$(проверка на ESC$)
+			 RETURN
+		 ENDIF
+
+ 	 IF ( ABS ( $!ELEM1[4].Up - $!ELEM2[4].Up ) LT 0.09 ) THEN
+		 !!Alert.Error ( 'Выделенный участок не имеет уклона' )
+		 RETURN
+	 ENDIF
+
+	 $!ELEM1[1]
+	 IF ( ( TYPE OF CE NEQ 'ELBO' ) AND ( TYPE OF CE NEQ 'OLET' ) AND ( TYPE OF CE NEQ 'TEE' ) )  THEN
+		 $P 'Выделенный элемент $!ELEM1[1] не является ELBO, TEE или OLET'
+		 !!Alert.Error ( 'Выделенный элемент $!ELEM1[1] не является ELBO, TEE или OLET' )
+		 RETURN
+	 ENDIF
+	 $!ELEM2[1]
+	 IF ( ( TYPE OF CE  NEQ 'ELBO' ) AND ( TYPE OF CE NEQ 'OLET' ) AND ( TYPE OF CE NEQ 'TEE' ) ) THEN
+		 $P 'Выделенный элемент $!ELEM2[1] не является ELBO, TEE или OLET'
+		 !!Alert.Error ( 'Выделенный элемент $!ELEM2[1] не является ELBO, TEE или OLET' )
+		 RETURN
+	 ENDIF
+
+	 IF ( '$!this.AlSlope.Selection(|Rtext|)' EQ 'OnFlow.Selection(|Rtext|)' ) THEN
+		 $!ELEM1[1]
+		 FORW
+		 NEXT WELD
+		 HANDLE (2,113)
+			 !!Alert.Error ( 'Выбрано неверное направление потока' )
+			RETURN
+		 ENDHANDLE
+		 !weld1 = REFNO OF CE
+		 NEXT WELD		 
+		 !weld2 = REFNO OF CE
+		 NEXT ELEM
+		 IF ( REFNO OF CE NEQ $!ELEM2[1] ) THEN
+			 !!Alert.Error ( 'Выбрано неверное направление потока' )
+		 RETURN
+		 ENDIF
+		 $!weld1
+		 FORW
+		 dir to next weld
+		 IF ( $!!Tr5 EQ false ) THEN
+			 ANGLE 0
+		 ENDIF		 
+	 	 $!weld2
+		 back
+		 dir to next weld
+		 forw
+		 $P angle $!!Tr5
+		 IF ( $!!Tr5 EQ false ) THEN
+			 ANGLE 0
+		 ENDIF
+	 ELSEIF ( '$!this.AlSlope.Selection(|Rtext|)' EQ 'AgainstFlow.Selection(|Rtext|)' ) THEN
+		 $!ELEM1[1]
+		 BACK
+		 NEXT WELD
+ 		 HANDLE (2,113)
+			 !!Alert.Error ( 'Выбрано неверное направление потока' )
+			RETURN
+		 ENDHANDLE
+		 !weld1 = REFNO OF CE
+		 NEXT WELD		 
+		 !weld2 = REFNO OF CE
+		 NEXT ELEM
+		 IF ( REFNO OF CE NEQ $!ELEM2[1] ) THEN
+			 FORW
+			 !!Alert.Error ( 'Выбрано неверное направление потока' )
+		 RETURN
+		 ENDIF
+		 $!weld1
+		 BACK
+		 dir to next weld
+ 		 IF ( $!!Tr5 EQ false ) THEN
+			 ANGLE 0
+		 ENDIF
+		 FORW
+	 	 $!weld2
+		 forw
+		 dir to next weld
+		 $P angle $!!Tr5
+		 IF ( $!!Tr5 EQ false ) THEN
+			 ANGLE 0
+		 ENDIF
+	 ENDIF
+Endmethod
+-------------------- ДОПОЛНИТЕЛЬНЫЙ МЕТОД ДЛЯ ПРОСТАНОВКИ ИЗМЕРЕНИЙ МЕЖДУ ДВУМЯ ЭЛЕМЕНТАМИ --------------------
+Define Method .ShowMeasurementsTwoElement()
+	 !ELEM1 = ARRAY()
+	 !ELEM1[1] = 1
+	 !ELEM2 = ARRAY()
+	 !ELEM2[1] = 1
+	 !ELEM3 = ARRAY()
+	 !ELEM3[1] = 1
+	 !this.ShowMeasurements( !ELEM1 , !ELEM2 , !ELEM3 , 'false' , 'TwoElem' , 'SingleBran' )
+Endmethod
+-------------------- ОЧИЩЕНИЕ ЭКРАНА ОТ AID ЭЛЕМЕНТОВ --------------------
+Define Method .CloseMeasurements()
+ AID CLEAR ALL
+Endmethod
+-------------------- ВЫБОР МЕТОДА --------------------
+Define Method .SelectMethod( !TextSlopeMethod is STRING )
+ !!Method = !TextSlopeMethod
+Endmethod
+-------------------- ЗАПУСК СПРАВКИ --------------------
+Define Method .Help()
+	 syscom 'start iexplore \\ur02\Aveva_Project_new\NGMACRO\NETPMLLIB\addcomp\forms\HelpPipelineSlope.mht'
+Endmethod
+-------------------- ВЫХОД --------------------
+Define Method .Dismiss()
+ !!SlopeValue = 1000
+ !!Method = 'Null'
+Endmethod
+--------------------
