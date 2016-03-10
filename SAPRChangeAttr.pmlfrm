@@ -1,0 +1,164 @@
+--------------------
+-- Author:          Sergey Belomestnykh
+-- Created:         12/03/2012
+-- Debugging:	14.03.12 - Добавлен функционал для вывода имени текущего элемента
+--				12.04.12 - Добавлен функционал для заполнения атрибута :U_TYPESYM
+--				16.04.12 - Изменен функционал для заполнения атрибута :U_TYPESYM на более дружелюбный
+--				24.07.12 - Добавлен еще один тип подвески "Жесткая на двух тягах"
+-- Description:
+-- Форма для изменения атрибутов :UES_NM, :UES_KOMPL_SC и :U_ATTA_TYPE у опор и подвесок в модуле Design
+--------------------
+ kill !!SAPRChangeAttr
+ setup form !!SAPRChangeAttr
+ title 'Обозначение опор и подвесок'
+ 	 !this.initcall = '!this.InitChangeAttr()'
+	 frame .frame1 at x0 y0
+		 button .buttonCE 'CE' at x1 y0.5 width 5 height 0.8 call |!this.CurrentElement()|
+			 PATH RIGHT
+			 HDIST 0.5
+		 PARAGRAPH .Message1 width 16  height 1
+		 text .Number tagwidth 11 'Номер позиции:' width 3.5 is REAL
+		 text .Completion tagwidth 11 'Номер чертежа:' at x1 y1.5 width 26.5 is STRING
+		 para .TypeElem at x1 y2.4 text 'Тип элемента:'
+			 PATH RIGHT
+			 HDIST 0.5
+		 rtog .rt1 'опора' call |!this.vybor('Support')|
+			 HDIST 3.0
+		 rtog .rt2 'подвеска' call |!this.vybor('Hanger')|
+		 button .symbol 'Выбрать условное обозначение' at  x1 y3.4 width 22 height 0.8 call |!this.AttrTypesym()|
+		 OPTION .opt1 tagwidth 25 at  x1 y3.4 width 11
+	 exit
+	 button .ApplyChange at x0 y4.8 width 8 height 0.8 'ОК' call |!this.ChangeAttr()|
+	 	 PATH RIGHT
+		 HDIST 0.5
+	 button .ClearAttr width 8 height 0.8 'Очистить' call |!this.ClearAllAttr()|
+		 HDIST 8.0
+     button .Help width 6 height 0.8 'Справка' call |!this.Help()|
+		 HDIST 0.5
+	 button .Dismiss width 6 height 0.8 'Dismiss' call |!this.Dismiss()| CANCEL
+exit
+-----------------
+ Define Method .SAPRChangeAttr()
+	 
+ Endmethod
+-----------------
+ Define Method .InitChangeAttr()
+	 !!NumberElem = !this.Number
+	 !!CompletionElem = !this.Completion
+ Endmethod
+-----------------
+ Define Method .CurrentElement()
+	 !!elemCE = !!CE.refno
+	 !this.Message1.val = NAME OF CE
+	 IF (TYPE OF CE NEQ 'ATTA' ) THEN
+		 !!Alert.Error ( 'Выделенный элемент не является опорой или подвеской (элементом ATTA)' )
+		 RETURN
+	 ENDIF
+	 !this.Number.val = :UES_NUM OF CE
+	 !this.Completion.val = :UES_KOMPL_SC OF CE
+	 IF ( :U_ATTA_TYPE OF CE eq 'SUPP' ) THEN
+		 !this.rt1.val = true
+	 ELSEIF ( :U_ATTA_TYPE OF CE eq 'HANG' ) THEN
+		 !this.rt2.val = true
+	 ELSE
+ 		 !this.rt1.val = false
+		 !this.rt2.val = false
+	 ENDIF
+   	 IF ( :U_TYPESYM EQ 'DEAD' ) THEN
+		 !opt1[1] = 'Неподвижная'
+	 ELSEIF ( :U_TYPESYM EQ 'ELAST' ) THEN
+		 !opt1[1] = 'Упругая на двух тягах'
+	 ELSEIF ( :U_TYPESYM EQ 'ELAST1' ) THEN
+		 !opt1[1] = 'Упругая на одной тяге'
+	 ELSEIF ( :U_TYPESYM EQ 'SLIP' ) THEN
+		 !opt1[1] = 'Скользящая'
+	 ELSEIF ( :U_TYPESYM EQ 'HARD' ) THEN
+		 !opt1[1] = 'Жесткая'
+	 ELSEIF ( :U_TYPESYM EQ 'HARD2' ) THEN
+		 !opt1[1] = 'Жесткая на двух тягах'		 
+ 	 ELSE
+		 !opt1[1] = 'unset'
+	 ENDIF
+	 !this.opt1.Dtext = !opt1
+ Endmethod
+-----------------
+ Define Method .ChangeAttr()
+	 $!!elemCE
+	 IF ( ( '$!!NumberElem' EQ '' ) OR ( '$!!CompletionElem' EQ '' ) ) THEN
+		 !!Alert.Error ( 'Введите значения "Номер позиции" и "Номер чертежа"' )
+		 RETURN
+	 ELSE
+		 :UES_NUM $!!NumberElem
+		 :UES_KOMPL_SC '$!!CompletionElem'
+	 ENDIF
+  	 IF ( '$!!TypeElemAtta' EQ 'Support' ) THEN
+		 :U_ATTA_TYPE 'SUPP'
+	 ELSEIF ( '$!!TypeElemAtta' EQ 'Hanger' ) THEN
+		 :U_ATTA_TYPE 'HANG'
+	 ELSE
+		 !!Alert.Error ( 'Выбирите тип элемента' )
+		 RETURN
+	 ENDIF
+	 IF ( '$!this.opt1' EQ 'Неподвижная' ) THEN
+		 :U_TYPESYM 'DEAD'
+	 ELSEIF ( '$!this.opt1' EQ 'Скользящая') THEN
+		 :U_TYPESYM 'SLIP'
+	 ELSEIF ( '$!this.opt1' EQ 'Упругая на двух тягах') THEN
+		 :U_TYPESYM 'ELAST'
+	 ELSEIF ( '$!this.opt1' EQ 'Упругая на одной тяге') THEN
+		 :U_TYPESYM 'ELAST1'
+	 ELSEIF ( '$!this.opt1' EQ 'Жесткая') THEN
+		 :U_TYPESYM 'HARD'
+	 ELSEIF ( '$!this.opt1' EQ 'Жесткая на двух тягах') THEN
+		 :U_TYPESYM 'HARD2'		 
+	 ELSE
+		 :U_TYPESYM 'unset'
+	 ENDIF
+ Endmethod
+-----------------
+ Define Method .AttrTypesym()
+ !elemCE = !!CE.refno
+ 	 IF (TYPE OF CE NEQ 'ATTA' ) THEN
+		 !!Alert.Error ( 'Выделенный элемент не является опорой или подвеской (элементом ATTA)' )
+		 RETURN
+	 ENDIF
+	 !TypeElemCE = :U_ATTA_TYPE OF CE
+ 	 IF ( :U_ATTA_TYPE OF CE EQ 'SUPP' ) THEN
+		 !this.rt1.val = true
+		 !opt1[1] = 'Неподвижная'
+		 !opt1[2] = 'Скользящая'
+		 !this.opt1.Dtext = !opt1
+	 ELSEIF ( :U_ATTA_TYPE OF CE EQ 'HANG' ) THEN
+		 !this.rt2.val = true
+		 !opt1[1] = 'Упругая на двух тягах'
+		 !opt1[2] = 'Упругая на одной тяге'
+		 !opt1[3] = 'Жесткая'
+		 !opt1[4] = 'Жесткая на двух тягах'
+		 !this.opt1.Dtext = !opt1
+	 ELSE 
+		 !this.rt1.val = false
+		 !this.rt2.val = false
+		 !opt1[6] = 'unset'
+		 !this.opt1.Dtext = !opt1
+	 ENDIF
+ Endmethod
+-----------------
+ Define Method .Vybor( !TypeAtta is String )
+!!TypeElemAtta = !TypeAtta
+ Endmethod
+-----------------
+ Define Method .ClearAllAttr()
+	 :U_ATTA_TYPE ''
+	 :U_TYPESYM ''
+	 :UES_NUM 0.00
+	 :UES_KOMPL_SC ''
+ Endmethod
+-----------------
+ Define Method .Help()
+syscom 'start iexplore U:\Manuals\HELP\SAPRChangeAttr.mht'
+ Endmethod
+-----------------
+ Define Method .Dismiss()
+!!TypeElemAtta = ''
+ Endmethod
+-----------------
