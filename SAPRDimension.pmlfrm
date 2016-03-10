@@ -1,0 +1,795 @@
+-----------------
+-- Author:          Sergey Belomestnykh
+-- Created:         10/2011
+
+-- Debugging:	08.02.12 - при создании слоя для размеров (элемент LAYE !!VIEWNAME + '/-Dims') и размеров (элементы LDIM) атрибуты DTERM OBLIQ и TSIZE 2 для простановки засечек явно не указываются
+--				10.02.12 - при простановке размеров на опоры и подвески (элементы ATTA) учтен случай расположения опоры первым элементом в иерархии элементов BRAN; реализован обработчик исключительных ситуаций HANDLE (2,113)
+-- 				13.02.12 - изменен алгоритм поиска ближайшего элемента к голове (head) и хвосту (tail) элементов BRAN, в настоящей версии поиск реализован через анализ иерархии элементов
+--				06.04.12 - атрибут ATTYPE у опор и подвесок заменен на :U_ATTA_TYPE
+--				05.06.12 - изменен алгоритм простановки размеров на элементы TEE, OLET и ATTA (создан метод PrevNextElement)
+-- 				19.07.12 - добавлено условие для исключения из простановки размеров элементов ATTA с значением атрибута :U_TYPESYM равным REPE ATEM
+--				22.08.12 - исправлена ошибка "зацикливания" метода PrevNextElement при простановке размеров на тройники TEE
+
+-- Description:
+-- Макрос для:
+--			   - создания 2D модели в изометрической проекции ISO3 на основе 3D модели
+--			   - создания линейных размеров на элментах трубопроводов ELBOW и BEND (отводы), TEE (тройники), ATTA (опоры и подвески), PCOM (элементы КИП)
+--			   - редактирования линейных размеров (изменение направление размера, редактирование текста размера, удаление размеров)
+--			   - вставки таблиц характ опор (4 таблицы + табл. для спецификации + табл. условных обозначений)
+-----------------
+KILL !!SAPRDimension
+setup form !!SAPRDimension
+	 title 'Схема расстановки опор'
+	 !this.initcall = '!this.autodimiso()'
+	 ---
+	 frame .frame1 'Создание 2D вида по 3D модели' width 25 height 2.3
+	 button .DrawCircle 'Создать 2D вид' at x1 width 22 height 0.8 call |!this.Create2DView()|
+	 exit
+	 PATH RIGHT
+	 HDIST 1.0
+	 ---
+	 frame .frame2 'Создание размеров' width 25 height 2.3
+	 button .CreateDimension 'Создать размеры' width 22 height 0.8 call |!this.DimensionForBranch()|
+	 exit
+	 ---
+	 frame .Tabset TABSET 'tabset'  at x0 y2.5
+		 frame .frame4 'Редактирование размера' at x0 y0
+		 	 frame .frame11 'Изменение направления' at x0.5 y0 width 23
+			 toggle .tog1 tagwidth 20 'размерной линии (на против.)' at x1 y0.5
+			 PATH DOWN
+			 VDIST 0.0
+			 toggle .tog2 tagwidth 20 'размерной линии (на перпен.)'
+			 toggle .tog3 tagwidth 20 'размерного текста'
+			 exit
+		 	 PATH RIGHT
+			 HDIST 1.0
+		 	 frame .frame10 'Изменение смещения' at y0 width 23.5
+			 text .D tagwidth 14 'размерной линии' at x1 y0.55 width 2 is REAL
+			 PATH DOWN
+			 VDIST 0
+			 text .T1 tagwidth 14 'размерного текста' width 2 is REAL
+			 PATH RIGHT
+			 HDIST 0
+			 text .T2 width 2 is REAL
+			 exit
+			 PATH DOWN
+			 VDIST 0.1
+			 button .CorrectionText 'Редактировать размер' width 22.5 height 0.8 call |!this.CorrectionText()|
+		 exit
+		 ---
+		 frame .frame5 'Удаление размера' at x0 y0 width 50 height 3.0
+		 button .DeleteDimension 'Удалить размер' at x2 y1.5 width 20 height 0.8 call |!this.DeleteDimension()|
+		 PATH RIGHT
+		 HDIST 3.5
+		 button .DeleteAllDimension 'Удалить все размеры' width 20 height 0.8 call |!this.DeleteAllDimension()|
+		 exit
+		 ---
+		 frame .frame6 'Вставка таблицы' at x0 y0 
+			frame .frame9 'Выбор таблицы' at x3 y0.5 width 20
+			 OPTION .opt1 width 15
+			 exit
+		 PATH RIGHT
+		 HDIST 2.5
+		 button .FormationTable 'Сформировать таблицу' at y1 width 20 height 0.8 call |!this.FormationTable()|
+		 PATH DOWN
+		 VDIST 0.5
+		 button .PerformTable 'Вставить таблицу' width 20 height 0.8  call |!this.PerfomTable()|
+		 exit
+	 exit
+	 ---
+	 frame .frame8 'Атрибуты размеров' at x0 y7.85
+	 button .attr1 'Просмотр атрибутов' at x0.5 y0.65 width 14 height 0.8 call |!this.AttrDimension()|
+	 PATH RIGHT
+	 HDIST 0.5
+	 PARAGRAPH .Message1 at y0.2 width 22 height 0.7
+	 HDIST 1.0
+	 PARAGRAPH .Message3 at y0.2 width 11 height 0.7
+	 PARAGRAPH .Message2 at x16 y0.85 width 25 height 0.7
+	 PATH RIGHT
+	 HDIST 1.0
+	 PARAGRAPH .Message4 at y0.85 width 8 height 0.7
+	 exit
+     ---
+	 button .Help 'Справка' at x1 y10 width 22 height 0.8 call |!this.Help()|
+	 PATH RIGHT
+	 HDIST 3.0
+	 button .Dismiss 'Dismiss' width 22 height 0.8 call |!this.Dismiss()| CANCEL
+exit
+-----------------
+-- Опредление метода autodimiso
+Define Method .autodimiso()
+!!DL = !this.D
+!!DT1 = !this.T1
+!!DT2 = !this.T2
+!!Tg1 = !this.tog1
+!!Tg2 = !this.tog2
+!!Tg3 = !this.tog3
+!this.Message1.val = 'Смещение  размерной  линии '
+!this.Message2.val = 'Смещение размерного текста '
+!this.Message3.val = 'Направление '
+!this.Message4.val = 'Наклон '
+!!opt1[1] = 'Таблица 1 - Характеристики упругих подвесок'
+!!opt1[2] = 'Таблица 2 - Нагрузки скользящих опор и жестких подвесок'
+!!opt1[3] = 'Таблица 3 - Нагрузка на неподвижные опоры'
+!!opt1[4] = 'Таблица 4 - Указатели температурных перемещений'
+!!opt1[5] = 'Спецификация опор и подвесок'
+!!opt1[6] = 'Условные обозначения'
+!this.opt1.Dtext = !!opt1
+Endmethod
+-----------------
+-- Определение метода создания 2D вида по 3D модели
+Define Method .Create2DView()
+	 -- Выбор трубы
+	 VAR !C NAME
+	 IF (( !!CE.TYPE NEQ 'PIPE') and ( !!CE.TYPE NEQ 'BRAN')) THEN
+	 !!ALERT.MESSAGE('Выберите трубу в Design Explorer')
+	 RETURN
+	 ENDIF
+	 -- Выбор листа - sheet
+	 IF (!!CE.TYPE NEQ 'SHEET') THEN
+	 !!ALERT.MESSAGE('После ответа укажите в графическом окне SHEET(внешняя рамка формата)')
+    --RETURN
+	 Prompt 'Укажите SHEET'
+	 Handle (61,528)
+     Return 
+     Endhandle
+	 ID  @
+	 ENDIF
+	  --Присваивание виду имени
+	 !!VIEWNAME = !!CE.NAME + '/ISO-1'
+	 VAR !!VIEWEX EXISTS $!!VIEWNAME
+	 --$P $!!VIEWNAME
+	 Prompt dis
+     VAR !NV COLL  MEMBERS OF SHEE 
+	 -- Проверка на существование вида и создание вида по заданным правилам и стилю презентации
+	 !KOL = !NV.SIZE()
+	 VAR !NV1 COLL  MEMBERS OF SHEE WITH ( MATCHWILD(NAME,'*ISO*'))
+	 !KOL1 = !NV1.SIZE()
+	 IF ( ( !KOL EQ 0) OR ( !KOL1 EQ 0 ) ) THEN
+	 NEW VIEW $!!VIEWNAME
+	 ELSE
+	 !NUM = !KOL1  + 1
+	 !!VIEWNAME = !!CE.NAME + '/ISO-$!NUM'
+	 NEW VIEW $!!VIEWNAME
+	 ENDIF
+	 ARCT 1
+	 VGAP 0
+     LFRA TRUE
+	 RRSF /Оформление_ИЦЭУ_REPR/GEN/ISO
+				 -- RRSF - Representation Ruleset Reference - атрибут указывает на правила презентации
+				 --	Оформление черетежа взято из проекта GEN
+	 DIRE E 45 N 35.26 D
+				 -- Определение направление создаваемого вида как ISO3
+	 VTYPE Global HLine
+				 -- VTYPE - атрибут View, указывающий на тип отображения модели (wireline и др...)
+     VAR !!VIEWNAME NAME
+	 -- Создание слоев для вида
+	 NEW LAYER
+	 !!CE.NAME = !!VIEWNAME + '/-Dims'
+     PURP DIMA
+	 NEW LAYER
+	 !!CE.NAME = !!VIEWNAME + '/-Labs'
+     PURP LABA
+	 NEW LAYER 
+	 !!CE.NAME = !!VIEWNAME + '/-Notes'
+     PURP NOTA
+	 NEW VNOTE
+	 NEW LAYER
+	 !!CE.NAME = !!VIEWNAME + '/-Tags'
+     PURP TAGA
+	 NEW LAYER 
+	 !!CE.NAME = !!VIEWNAME + '/-Angs'
+     PURP ANGA
+	 view
+	 VAR !!VIEWNAME NAME
+	 !IDN = !!CE.NAME + 'ID'
+	 $!!VIEWNAME
+	 VAR !B IDLN
+	 $!B
+	 NEW IDLI $!IDN
+	 NEW ADDE
+	 IDNA $!C 
+	 OWNER OF OWNER
+				 -- Возврат на уровень иерархии выше
+	 $!!VIEWNAME
+	 IDLN $!IDN
+	 OWNER OF OWNER
+				 -- Возврат на уровень иерархии выше
+	 $!!VIEWNAME
+	 AUTOSCALE $!C
+				 -- Автомасштабирование элемента в создаваемом виде
+	 UPDATE DESI 
+	 LABEL /L1	
+	 !answer = !!Alert.Confirm('Положение вида изменять требуется?')
+	 IF ( !answer eq 'YES') THEN 
+	 --VREGION @
+	 --LABEL /L1
+	 view
+	 VREGION FROM @ TO @
+				 -- "ручное" определение границы создаваемого View
+	 AUTOSCALE $!C 
+	 UPDATE DESI
+	 GOLABEL /L1
+	 ELSE 
+	 GOLABEL /L2
+	 ENDIF
+	 LABEL /L2
+	 view
+Endmethod
+-----------------
+-- Определение метода простановки размеров для BRANCH
+Define Method .DimensionForBranch()
+-- Проверка на нахождение в элементе иерархии VIEW
+	 IF ( !!CE.TYPE NEQ 'VIEW' ) THEN
+	 !!ALERT.MESSAGE ('Перейдите на VIEW...')
+	 RETURN
+	 ENDIF
+-- Определение вида и слоя на этом виде для простановки размеров
+	 view
+	 !viewname = !!CE.name
+	 !viewdir = SUBSTRING ( STRING ( DIR OF ce ), 1 , 1)
+	 var !lay coll all layer for ce
+	 DO !l indices !lay
+	 $!lay[$!l]
+	 !nam = name
+	 IF matchw ('$!nam','*Dim*') THEN
+	 !layref = ref
+	 ENDIF
+	 ENDDO
+	 $!viewname
+-- Определение "значимых" - significant элементов на виде
+	 var !VS VSCAN SIGNIF IN CE
+	 DO !q from 1 to !VS.Size()
+-- ЭЛЕМЕНТЫ ELBO и BEND - отводы
+	 $!VS[$!q]
+		 -- Сбор элементов ELBO и BEND (отводы) в массив
+		 var !BrEl coll ALL BRAN MEM WITH ( ( TYPE eq 'ELBO' ) or ( TYPE eq 'BEND' ) ) FOR CE
+		 !nE = !BrEl.Size()
+		 DO !xE from 1 to !nE
+		 $!BrEl[$!xE]
+		 -- Определение направления точки p1 или p2 отвода и задание углов поворота размеров относительно осей X,Y,Z или E,N,U
+				 IF ( ARRIVE OF $!BrEl[$!xE] eq 1 ) THEN
+					 !ppointdir = SUBSTRING(STRING(PPOINT 2 DIR OF $!BrEl[$!xE] ), 1 , 1)
+				 ELSEIF ( ARRIVE OF $!BrEl[$!xE] EQ 2 ) THEN
+					 !ppointdir = SUBSTRING(STRING(PPOINT 1 DIR OF $!BrEl[$!xE] ), 1 , 1)
+				 ENDIF
+				 -- Атрибут ARRIVE ( перевод на рус. 'приход' ) указывет на функцию точки PPOINT, т.е. является ли она точкой входа иди выхода потока в отвод
+			 !angledir = !this.AngleDirection ( !ppointdir , !viewdir )
+			 $!viewname
+			 $!layref
+			 !yE = $!xE + 1
+			 -- Образмеривание начала и конца трубопровода
+				 IF ( !yE gt !nE ) THEN
+				 	 IF ( ARRIVE OF $!BrEl[1] EQ 1 ) THEN
+					 !ppointdir = SUBSTRING(STRING(PPOINT 1 DIR OF $!BrEl[1] ), 1 , 1)
+					 ELSEIF ( ARRIVE OF $!BrEl[1] EQ 2 ) THEN
+					 !ppointdir = SUBSTRING(STRING(PPOINT 2 DIR OF $!BrEl[1] ), 1 , 1)
+					 ENDIF
+				 new ldim doff 10
+--				 IF ( ( :U_TYPESYM of ATTA EQ 'REPE' ) OR ( :U_TYPESYM of ATTA EQ 'ATEM' ) ) THEN
+--					 $p line 268
+--				 ENDIF
+				 dir $!ppointdir
+				 pldir $!angledir
+				 new dppt
+				 ddname $!VS[$!q]
+				 nppt 1
+				 new dppt
+				 ddname $!BrEl[1]
+				 	 IF ( ARRIVE OF $!BrEl[$!nE] EQ 1 ) THEN
+					 !ppointdir = SUBSTRING(STRING(PPOINT 2 DIR OF $!BrEl[$!nE] ), 1 , 1)
+					 ELSEIF ( ARRIVE OF $!BrEl[$!nE] EQ 2 ) THEN
+					 !ppointdir = SUBSTRING(STRING(PPOINT 1 DIR OF $!BrEl[$!nE] ), 1 , 1)
+					 ENDIF
+				 new ldim doff 10
+--				 IF ( ( :U_TYPESYM of ATTA EQ 'REPE' ) OR ( :U_TYPESYM of ATTA EQ 'ATEM' ) ) THEN
+--					 $p line 284
+--				 ENDIF			
+				 dir $!ppointdir
+				 pldir $!angledir
+				 new dppt
+				 ddname $!VS[$!q]
+				 nppt 2
+				 new dppt
+ 				 ddname $!BrEl[$!nE]
+				 $!viewname
+				 ELSE
+				 -- Простановка размеров на промежуточные элементы
+				 new ldim doff 10
+-- 				 IF ( ( :U_TYPESYM of ATTA EQ 'REPE' ) OR ( :U_TYPESYM of ATTA EQ 'ATEM' ) ) THEN
+--					 $p line 298
+--				 ENDIF
+				 dir $!ppointdir
+				 pldir $!angledir
+				 new dppt
+				 ddname $!BrEl[$!xE]
+				 new dppt
+				 ddname $!BrEl[$!yE]
+				 ENDIF
+		 ENDDO
+-- ЭЛЕМЕНТЫ TEE - тройники
+	 $!VS[$!q]
+	 !this.PrevNextElement( 'TEE' , '$!viewdir' , '$!viewname' , $!layref )
+-- ЭЛЕМЕНТЫ ATTA - крепления (подвески, опоры)
+	 $!VS[$!q]
+	 !this.PrevNextElement( 'ATTA' , '$!viewdir' , '$!viewname' , $!layref )
+-- ЭЛЕМЕНТЫ PCOM
+	 $!VS[$!q]
+ 	 !this.PrevNextElement( 'PCOM' , '$!viewdir' , '$!viewname' , $!layref )
+	 ENDDO
+-- Вызов метода для простановки размеров на крайние элементы
+$!viewname
+!this.SearchHeadTail ()
+Endmethod
+-----------------
+-- Определение метода поиска ближайщих элементов к "Голове" и "Хвосту" и простановки на них размеров
+Define Method .SearchHeadTail ()
+!viewname = !!CE.name
+!viewdir = SUBSTRING ( STRING ( DIR OF ce ) , 1 , 1 )
+--Сбор в массив !lay всех слоев элемента View
+var !lay coll all layer for ce
+-- С помощью var !lay coll в массив !lay собираются все слои текущего элемента, т.е. View
+DO !l indices !lay
+$!lay[$!l]
+!nam = name
+-- Анализ на поиск слоя, содержащего размеры (ключевое слово Dims)
+	 IF matchw ( '$!nam','*Dims*' ) THEN
+		 !layref = ref
+		 $!layref
+		 -- Сбор в массив всех линейный размеров для данного View
+		 VAR !BrLDIM coll ALL LDIM FOR LAYE
+		 !nLDIM = !BrLDIM.Size()
+	 ENDIF
+ENDDO
+$!viewname
+-- Определение "значимых" элементов на виде
+var !VS VSCAN SIGNIF IN CE
+DO !q from 1 to !VS.Size()
+	 $!VS[$!q]
+	 IF ( TYPE OF $!VS[$!q] EQ 'BRAN' ) THEN
+		 -- Сбор в массив элементов ELBO и BEND (отводы), TEE и ATTA (с атрибутами SUPP и HANG)
+		 VAR !BrEl coll ALL BRAN MEM WITH ( ( TYPE EQ 'ELBO' ) OR ( TYPE EQ 'BEND' ) OR ( TYPE EQ 'TEE' ) OR ( ( TYPE EQ 'ATTA' ) AND ( ( :U_ATTA_TYPE of ATTA EQ 'SUPP' ) OR ( :U_ATTA_TYPE of ATTA EQ 'HANG' ) ) AND ( ( :U_TYPESYM of ATTA NEQ 'REPE' ) OR ( :U_TYPESYM of ATTA NEQ 'ATEM' ) ) ) ) FOR $!VS[$!q]
+		 !nE = !BrEl.Size()
+---------------ГОЛОВА---------------
+		 -- Ближайший к "голове" элемент иерархии
+		 $!BrEl[1]
+		 VAR !BRCE REFNO of OWNER
+		 -- Проверка на наличие размера между "головой" и элементом BrEl[1], ближайшем к "голове". Проставление размера на "голову"
+		 !Mhead = 'true'
+		 -- Mhead - метка: если 'true' - размер между головой и элементом не существует, если 'false', то существует. Следующие условия определяют значение метки
+			 DO !xLDIM from 1 to !BrLDIM.Size()
+				 -- Цикл необходим для анализа всех размеров, хранящихся в слое размеров данного вида
+				 $!BrLDIM[$!xLDIM]
+				 --Условие для определения существования размера между элементами $!BrLDIM[$!xLDIM] и $!BrEl[1] - "голова"
+				 IF ( ( STRING ( REFNO of DDNAME of DPPT 1 of $!BrLDIM[$!xLDIM] ) EQ '$!BrEl[1]' ) AND ( STRING ( REFNO of DDNAME of DPPT 2 of $!BrLDIM[$!xLDIM] ) EQ '$!BRCE' ) ) THEN
+					 !Mhead = 'false'
+				 ELSEIF ( ( STRING ( REFNO of DDNAME of DPPT 2 of $!BrLDIM[$!xLDIM] ) EQ '$!BrEl[1]' ) AND ( STRING ( REFNO of DDNAME of DPPT 1 of $!BrLDIM[$!xLDIM] ) EQ '$!BRCE' ) ) THEN
+					 !Mhead = 'false'
+				 ENDIF
+			 ENDDO
+			 -- Простановка размера на голову
+			 IF ( $!Mhead EQ true ) THEN
+				 $!BrEl[1]
+				 -- Определение направления и задание углов поворота размеров относительно осей X,Y,Z (или E,N,U)
+				 !Hppointdir = SUBSTRING ( STRING ( PPOINT 1 DIR OF $!BrEl[1] ) , 1 , 1 )
+				 !Hangledir = !this.AngleDirection ( !Hppointdir , !viewdir )
+				 -- Размер на "голову" элемента branch
+				 $!viewname
+				 $!layref
+				 new ldim doff 10
+				 dir $!Hppointdir
+				 pldir $!Hangledir
+				 new dppt
+				 ddname $!BrEl[1]
+				 new dppt	
+				 ddname $!BRCE
+			 ENDIF
+---------------ХВОСТ---------------
+		 -- Ближайший к "хвосту" элемент иерархии
+		 $!BrEl[$!nE]
+		 VAR !BRCE REFNO of OWNER
+		 -- Проверка на наличие размера между "хвостом" и элементом BrEl[$!nE], ближайшем к "голове". Проставление размера на "хвост"
+		 !Mtail = 'true'
+		 -- Mtail - метка: если 'true' - размер между хвостом и элементом не существует, если 'false', то существует. Следующие условия определяют значение данной метки
+			 DO !xLDIM from 1 to !BrLDIM.Size()
+			 -- Цикл необходим для анализа всех размеров, хранящихся в слое размеров данного вида
+				 $!BrLDIM[$!xLDIM]
+				 --Условие для определения существования размера между элементами $!BrLDIM[$!xLDIM] и $!BrEl[N] - "хвост"
+				 IF ( ( STRING ( REFNO of DDNAME of DPPT 1 of $!BrLDIM[$!xLDIM] ) EQ '$!BrEl[$!nE]' ) AND ( STRING ( REFNO of DDNAME of DPPT 2 of $!BrLDIM[$!xLDIM] ) EQ '$!BRCE' ) ) THEN
+				 !Mtail = 'false'
+				 ELSEIF ( ( STRING ( REFNO of DDNAME of DPPT 2 of $!BrLDIM[$!xLDIM] ) EQ '$!BrEl[$!nE]' ) AND ( STRING ( REFNO of DDNAME of DPPT 1 of $!BrLDIM[$!xLDIM] ) EQ '$!BRCE' ) ) THEN
+				 !Mtail = 'false'
+				 ENDIF
+			 ENDDO
+ 			 -- Простановка размера на хвост
+			 IF ( $!Mtail EQ true ) THEN
+				 $!BrEl[$!nE]
+				 -- Определение направления и задание углов поворота размеров относительно осей X,Y,Z (или E,N,U)
+				 !Tppointdir = SUBSTRING ( STRING ( PPOINT 1 DIR OF $!BrEl[$!nE] ) , 1 , 1 )
+				 !Tangledir = !this.AngleDirection ( !Tppointdir , !viewdir )
+				 -- Размер на "голову" элемента branch
+				 $!viewname
+				 $!layref
+				 new ldim doff 10
+				 dir $!Tppointdir
+				 pldir $!Tangledir
+				 new dppt
+				 ddname $!BrEl[$!nE]	
+				 new dppt
+				 ddname $!BRCE
+				 nppt 2
+			 ENDIF
+-----------------------------------
+	 ENDIF
+ENDDO
+Endmethod
+-----------------
+-- Определение метода для удаления размеров (с выбором размеров для удаления)
+Define Method .DeleteDimension ()
+-- Метод pickolet() собирает массив с референтными номерами элементов для удаления
+!this.pickcollect()
+-- После выбора элементов для удаления возвращаемся в данное место программы
+IF ( !!COND NEQ 'FALSE') THEN
+!ANS = !!Alert.Confirm('Вы уверены, что хотите удалить выделенные элементы?')
+	 IF ( !ANS EQ 'YES' ) THEN
+		 DO !IDlab VALUES !!AR
+		 $!IDlab
+		 Delete $!!CE.type
+		 ENDDO
+		 !!AR.Delete()
+	 ELSE
+		 DO !IDlab VALUES !!AR
+		 $!IDlab
+		 Unenhance $!IDlab
+		 ENDDO
+		 RETURN
+	 ENDIF
+ELSE
+RETURN
+ENDIF
+Endmethod
+-----------------
+-- Определение метода для сбора выделенных элементов в массив
+Define Method .pickcollect()
+!!AR = ARRAY()
+	 !!ALERT.MESSAGE ('Укажите элементы ...')
+DO
+     ID @
+     Handle (61,528)
+	 RETURN
+     Endhandle
+	 Prompt dis
+	 !C = REFN OF OWNER OF CE
+		 IF  ( ( !C.type NEQ 'LDIM' ) ) THEN
+		 !!Alert.Error('Текущий элемент не является линейным размером')
+		 !!COND = 'FALSE'
+				 -- Переменная !!COND (condition) используется в методе DeleteDimension для фильтрации элементов не имеющих тип LDIM
+		 ENDIF
+	 !!AR.Append(!C)
+     Enhance $!C
+	 !!COND = 'TRUE'
+	 Prompt 'Укажите точку...'
+ENDDO
+Endmethod
+-----------------
+-- Определение метода удаления всех размеров
+Define Method .DeleteAllDimension ()
+IF ( !!CE.TYPE EQ 'LAYE' AND !!CE.PURP EQ 'DIMA' ) THEN
+!ANS = !!Alert.Confirm('Вы уверены, что хотите удалить все размеры?')
+	 IF ( !ANS EQ 'YES' ) THEN
+	 DELETE LAYE MEM
+	 ELSE
+	 RETURN
+	 ENDIF
+ELSE
+!!ALERT.MESSAGE ('Перейдите на слой с размерами')
+RETURN
+ENDIF
+Endmethod
+-----------------
+-- Определение метода "Корректировка текста"
+Define Method .CorrectionText ()
+DO
+ID @
+handle (61,528)
+return
+endhandle
+	 IF  ( ( !!CE.type EQ 'LDIM' OR !!CE.type EQ 'DPPT' ) ) THEN
+	 LDIM
+	 !element = !!CE.refno
+	 !dd = substring(string(dir of ce), 1 , 1)
+		 -- Изменение направления размерной линии (на против)
+		 IF ( $!!Tg1 EQ true ) THEN
+			 IF ( !dd EQ 'E' ) THEN
+			 !dimd = 'W'
+			 ELSEIF ( !dd EQ 'W' ) THEN	
+			 !dimd = 'E'
+			 ELSEIF ( !dd EQ 'N' ) THEN
+			 !dimd = 'S'
+			 ELSEIF ( !dd EQ 'S' ) THEN
+			 !dimd = 'N'
+			 ELSEIF ( !dd EQ'U' ) THEN
+			 !dimd = 'D'
+			 ELSEIF ( !dd EQ 'D' ) THEN
+			 !dimd = 'U'
+			 ENDIF
+		 dire $!dimd
+		 ENDIF
+		 -- Изменение направления размерной линии (на перпен)
+		 IF ( $!!Tg2 EQ true ) THEN
+			 IF ( !dd EQ 'E' OR !dd EQ 'W' ) THEN
+			 !dimd = 'N'
+			 ELSEIF ( !dd EQ 'N' OR !dd EQ 'S' ) THEN
+			 !dimd = 'U'
+			 ELSEIF ( !dd EQ 'U' OR !dd EQ 'D' ) THEN
+			 !dimd = 'E'
+			 ENDIF
+		 dire $!dimd
+		 ENDIF
+		 -- Изменение направления размерного текста
+		 IF ( $!!Tg3 eq true ) THEN
+		 DTANGLE PARALLEL
+		 ENDIF
+--------------
+		 -- Изменение расстояния до размерной линии
+		 !Sif = !!DL.String()
+		 IF ( '$!Sif' NEQ '' ) THEN
+		 DOFF $!!DL
+		 ENDIF
+		 -- Изменение расстояния до размерного текста
+		 !PERPold = DTOF[1]
+		 !PARold = DTOF[2]
+		 !Sif1 = !!DT1.String()
+		 !Sif2 = !!DT2.String()
+		 -- В результате выполнения следующей конструкции if обновляются значения [1] и [2] атрибута DTOF
+		 IF ( ( '$!Sif1' NEQ '' ) AND ( '$!Sif2' EQ '' ) ) THEN
+			 !PARnew = $!!DT1
+			 !PERPnew = $!PERPold
+		 ELSEIF ( ( '$!Sif2' NEQ '' ) AND ( '$!Sif1' EQ '' ) ) THEN
+			 !PARnew = $!PARold
+			 !PERPnew = $!!DT2
+		 ELSEIF ( ( '$!Sif1' NEQ '' ) AND ( '$!Sif2' NEQ '' ) ) THEN
+			 !PARnew = $!!DT1
+			 !PERPnew = $!!DT2
+		 ELSE
+		 GOLABEL /L3
+		 ENDIF
+		 DTOFF $!PERPnew $!PARnew
+		 LABEL /L3
+ 	 ENDIF
+ENDDO
+RETURN
+Endmethod
+------------------
+-- Определение метода для вывода на форму атрибутов размера
+Define Method .AttrDimension ()
+	 IF ( ( !!CE.TYPE EQ 'LDIM' ) OR ( !!CE.TYPE EQ 'DPPT' ) ) THEN
+	 LDIM
+	 !DOF = STRING ( doff of ce )
+	 !DTO1 = STRING ( dtof[1] of ce )
+	 !DTO2 = STRING ( dtof[2] of ce )
+	 !DIR = SUBSTRING ( STRING ( dir of ce ) , 1 , 1 )
+	 !PL = STRING ( pldir[1] of ce )
+	 !this.Message1.val = 'Смещение  размерной  линии '&'$!DOF'
+	 !this.Message2.val = 'Смещение размерного текста '&'$!DTO2'&';'&' $!DTO1'
+	 !this.Message3.val = 'Направление '&'$!DIR'
+	 !this.Message4.val = 'Наклон '&'$!PL'
+	 ELSE
+	 !!Alert.Error('Текущий элемент не является линейным размером')
+	 RETURN
+	 ENDIF
+Endmethod
+------------------
+-- Определение метода для определения направления размерного текста
+Define Method .AngleDirection ( !ppointdir is STRING , !viewdir is STRING ) is REAL
+	 IF ( !viewdir neq 'D' ) THEN
+		 IF ( !ppointdir eq 'E' ) or ( !ppointdir eq 'W' ) THEN
+								 -- E - East, фактически обозначение оси X
+		 !angledir = 120
+		 ELSEIF ( !ppointdir eq 'N' ) or ( !ppointdir eq 'S' ) THEN
+								 -- N - Nord, фактически обозначение оси Y
+		 !angledir = 60
+		 ELSEIF ( !ppointdir eq 'U' ) or ( !ppointdir eq 'D' ) THEN
+  								 -- U - Up, фактически обозначение оси Z
+		 !angledir = 120
+		 ENDIF
+	 ELSE
+	 !angledir = 90
+	 ENDIF
+	 RETURN !angledir
+Endmethod
+----------------- 
+-- Определение метода для формирования таблиц
+Define Method .FormationTable ()
+	 !MyFile = object File ( 'U:\Manuals\HELP\ForSAPRDimension\Tables.txt' )
+	 !FrD = Array()
+	 !FrR = Array()
+	 !kp = 1
+	 !kl = 1
+	 !FrD[1] = ' '
+	 !FrR[1] = ' '
+	 !MyFile.Open ('READ')
+	 Handle (160,9)
+	 !!Alert.Message ('В U:\Manuals\HELP\ForSAPRDimension\ нет файла Tables.txt')
+	 !kp = 0
+	 RETURN
+	 EndHandle
+	 IF ( !kp EQ 1 ) THEN
+		 DO
+		 !Line = !MyFile.ReadRecord()
+			 IF ( !Line.Set() ) THEN
+			 !array1 = !Line.Split(',')
+				 IF  !array1.Size() EQ 2 THEN
+				 !FrD[!kl] = !array1[1]
+				 !FrR[!kl] = !array1[2]
+				 !kl = !kl + 1
+				 ELSE
+				 !!Alert.Error( 'В файле Tables.txt неправильно задана строка ' & trim ( !Line ) )
+				 !Line = ' '
+				 ENDIF
+			 ELSE
+			 break
+			 ENDIF
+		 ENDDO
+	 !MyFile.Close()
+	 !kl = !kl - 1
+	 !this.opt1.Dtext = !FrD
+	 !this.opt1.Rtext = !FrR
+	 ENDIF
+	 IF (!!CE.Type NEQ 'SHEE') THEN
+	 !!Alert.Message('Перейдите на ЛИСТ')
+	 RETURN
+	 ENDIF
+	 --Запуск Excel
+	 !st =  trim ( !this.opt1.Selection(|Rtext| ) )
+	 !st1 = 'start Excel ' & !st
+	 SYSCOM |$!st1|
+Endmethod
+-----------------
+-- Определение метода для кнопки "Вставить таблицу"
+Define Method .PerfomTable ()
+$m/C:\Draftmac\TABLE.mac
+VAR !NameNote COLL  MEMBERS OF SHEE WITH ( MATCHWILD ( NAME , '*Таблица*' ) )
+DO !n from 1 to !NameNote.Size()
+	 $!NameNote[$!n]
+	 !nam = name
+	 -- Условие необходимо для простановки спец. символов для случая нескольких "шапок"
+	 IF ( matchw ( '$!nam','*Таблица_1*' ) AND ( SPPURP of NOTE NEQ 'SPSYM' ) ) THEN
+		 !XinitSytm2 = 70
+		 !YinitSytm2 = -21
+		 !XinitSytm3 = 178
+		 !YinitSytm3 = -24
+		 !DplusLTab1 = 215
+					 -- !DplusL = (ширина таблицы + 5 мм расстояние между таблицами)
+		 DO !q from 1 to $!!kol
+			 !Xsytm2 = $!XinitSytm2 - ( ( $!q - 1 ) * $!DplusLTab1 )
+			 NEW SYMBOL
+			 Tmrf /Оформление_ИЦЭУ_HEADLINE/SYLB1/SYTM2
+			 XYSCALE 1.4 1.6
+			 origin offset X $!Xsytm2 Y $!YinitSytm2
+			 END
+			 !Xsytm3 = $!XinitSytm3 - ( ( $!q - 1 ) * $!DplusLTab1 )
+			 NEW SYMBOL
+			 origin offset X $!Xsytm3 Y $!YinitSytm3
+			 Tmrf /Оформление_ИЦЭУ_HEADLINE/SYLB1/SYTM3
+			 END
+		 ENDDO
+		 SPPURP SPSYM
+				 -- SPPURP - метка для обозначения наличия вставленных символов
+	 ELSEIF ( matchw ( '$!nam','*Таблица_3*' ) AND ( SPPURP of NOTE NEQ 'SPSYM' ) ) THEN
+		 !XinitPoint1 = 275.5
+		 !YinitPoint1 = -21.5
+		 !XinitPoint2 = 125.5
+		 !YinitPoint2 = -21.5
+		 !DplusLTab3 = 340
+		 DO !q from 1 to $!!kol
+			 !XPoint1 = $!XinitPoint1 - ( ( $!q - 1 ) * $!DplusLTab3 )
+			 NEW TEXTPRIMITIVE
+			 Origin Offset X $!XPoint1 Y $!YinitPoint1
+			 Font 11
+			 TPEN 41
+			 CHEI 3
+			 JUST CENTRE
+			 BTEX '.'
+			 REPEAT 2 by X 25
+			 END
+		 	 !XPoint2 = $!XinitPoint2 - ( ( $!q - 1 ) * $!DplusLTab3 )
+			 NEW TEXTPRIMITIVE
+			 Origin Offset X $!XPoint2 Y $!YinitPoint2
+			 Font 11
+			 TPEN 41
+			 CHEI 3
+			 JUST CENTRE
+			 BTEX '.'
+			 REPEAT 2 by X 25
+			 END
+		 ENDDO
+		 SPPURP SPSYM
+	 ELSEIF ( matchw ( '$!nam','*Таблица_4*' ) AND ( SPPURP of NOTE NEQ 'SPSYM' ) ) THEN
+		 !XinitSytm4 = 25
+		 !YinitSytm4 = -12
+		 !DplusLTab4 = 70
+		 DO !q from 1 to $!!kol
+			 !Xsytm4 = $!XinitSytm4 - ( ( $!q - 1 ) * $!DplusLTab4 )
+			 NEW SYMBOL
+			 origin offset X $!Xsytm4 Y $!YinitSytm4
+			 Tmrf  /Оформление_ИЦЭУ_HEADLINE/SYLB1/SYTM4
+			 REPEAT 2 by X 15
+			 END
+		 ENDDO
+		 SPPURP SPSYM
+	 ENDIF
+ENDDO
+Endmethod
+-----------------
+-- Определение метода "Справка"
+Define Method .Help ()
+syscom 'start iexplore  U:\Manuals\HELP\SAPRDimension.mht'
+RETURN
+Endmethod
+-----------------
+-- Опредление метода для выхода из формы
+Define Method .Dismiss ()
+!!OR = '0'
+Endmethod
+-----------------
+-- Определение метода для простановки размеров на prev и next элементы
+Define Method .PrevNextElement( !typeElem is STRING , !viewdir is STRING , !viewname is STRING , !layref is DBREF )
+	 -- Сбор элементов в массив элементов, заданных переменной !typeElem
+	 IF ( '$!typeElem' EQ 'ATTA' ) THEN
+		 var !Element coll ALL BRAN MEM WITH ( ( TYPE EQ 'ATTA' ) AND ( ( :U_ATTA_TYPE EQ 'HANG' ) OR ( :U_ATTA_TYPE EQ 'SUPP' ) ) ) FOR CE
+	 ELSE
+		 var !Element coll ALL BRAN MEM WITH ( TYPE EQ '$!typeElem' ) FOR CE
+	 ENDIF
+	 DO !iElem from 1 to !Element.Size()
+
+		 $!Element[$!iElem]
+
+		 -- Условие, необходимое для исключения элементов ATTA с атрибутами :U_TYPESYM равными REPE и ATEM
+		 IF ( ( TYPE OF CE EQ 'ATTA' ) AND ( ( :U_TYPESYM EQ 'REPE' ) OR ( :U_TYPESYM EQ 'ATEM' ) ) ) THEN
+			 GOLABEL /EXITFROMDO
+		 ENDIF
+ 			 -- Определение направления и задание углов поворота размеров
+			 !ppointdir = SUBSTRING ( STRING ( PPOINT 1 DIR OF $!Element[$!iElem] ) , 1 , 1 )
+			 !angledir = !this.AngleDirection ( !ppointdir , !viewdir )
+														 -- Для трубопровода не принципиально относительно какой точки определять направление Ppoint1 или Ppoint2
+  		 -- ОБРАЗМЕРИВАНИЕ ЭЛЕМЕНТОВ
+			 !MarkPrevNext = 'prevElem'
+			 LABEL /Repetition
+			 IF ( '$!MarkPrevNext' EQ 'nextElem' ) THEN
+				 next
+				 HANDLE ( 2, 113 )
+ 					 RETURN
+				 ENDHANDLE
+			 ENDIF
+				 prev
+			 HANDLE ( 2, 113 )
+				 !MarkPrevNext = 'nextElem'
+			 ENDHANDLE
+			 IF ( '$!MarkPrevNext' EQ 'nextElem' ) THEN
+				 next
+				 HANDLE ( 2, 113 )
+					 RETURN
+				 ENDHANDLE
+			 ENDIF
+	 	 !type = SUBSTRING ( TYPE of CE , 1 )
+			 -- Условие для проверки наличия на соседнем элементе (prev или next) линейного размера. Условие необходимо, т.к. привязка к необразмериванному элементу не имеет смысла
+			 IF ( ( !type EQ 'ELBO' ) OR ( !type EQ 'BEND' ) OR ( !type EQ 'TEE' ) OR ( ( !type EQ 'ATTA' ) AND ( ( :U_ATTA_TYPE of ATTA EQ 'SUPP' ) OR ( :U_ATTA_TYPE of ATTA EQ 'HANG' ) ) AND ( ( :U_TYPESYM of ATTA NEQ 'REPE' ) OR ( :U_TYPESYM of ATTA NEQ 'ATEM' ) ) ) ) THEN
+				 !name = !!CE.name
+				 $!viewname
+				 $!layref
+				 new ldim doff 10
+				 dir $!ppointdir
+				 pldir $!angledir
+				 new dppt
+				 ddname $!name
+				 new dppt
+				 ddname $!Element[$!iElem]
+ 				 ELSE
+				 GOLABEL /Repetition
+			 ENDIF
+		 $!viewname
+		 LABEL /EXITFROMDO
+	 ENDDO
+Endmethod
+-----------------
