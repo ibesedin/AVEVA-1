@@ -1,0 +1,1382 @@
+﻿-------------------- »Ќ‘ќ–ћј÷»я ќ ѕ–ќ√–јћћ≈ --------------------
+-- Author:          Sergey Belomestnykh ( software engineer computer-aided design )
+-- Created:         11/2014
+-- Debugging:      
+-- Description:    
+-- ‘орма дл¤ проверки на коллизии моделей, построенных в модуле Design
+--ѕлан:	        
+--- поставить тест с различными способами вывода коллизий (высети параметры проверко)
+--- повторени¤
+-------------------- ќѕ–≈ƒ≈Ћ≈Ќ»≈ ƒ»«ј…Ќј ‘ќ–ћџ --------------------
+kill !!BSSClashesDebugNET
+setup form !!BSSClashesDebugNET Dialog Docking
+	 title 'Проверка'
+	 -- вызов метода - конструктора
+	 !!BSSClashesDebugNET.initcall = '!this.BSSClashesDebugNET()'
+				 button .ButMapBuildMdb	     	'Обновить пространственную карту'	at x 0   y 0   width 69 height 1.0 CALL |!this.MethodMapBuildMdb()|
+			 frame .CheckFrame 					'Проверяемые элементы'		 at x 0 y 1.25
+				 button .CheckElemAddBut 		'Добавить'					 at x 0   y 0.25  width 15 height 1.0 CALL |!this.SelectElement('CHECK')|
+				 button .CheckElemClearList 	'Очистить'					 at x 0   y 1.5   width 15 height 1.0 CALL |!this.ClearList('CHECK')|
+				 list .CheckElemList										 at x 17  y 0     width 50 lines  6
+			 exit
+			 frame .ObstFrame 					'Рассматриваемые элементы' 	 at x 0   y 7.35
+				 button .ObstElemAddBut 		'Добавить'					 at x 0   y 0.25  width 15 height 1.0 CALL |!this.SelectElement('OBST')|
+			     --button .ObstElemAddButAll 			 'ƒобавить все' 				 at x 0   y 1.5   width 15 height 1.0 CALL |!this.SelectElement('ALLMODELOBST')|
+				 button .ObstElemClearList 		'Очистить'					 at x 0   y 1.5   width 15 height 1.0 CALL |!this.ClearList('OBST')|
+				 list .ObstElemList											 at x 17  y 0     width 50 lines  6
+			 exit
+			 frame .ExclFrame 					'Исключаемые элементы'		 at x 0   y 13.35
+				 button .ExclElemAddBut 		'Добавить'					 at x 0   y 0.25  width 15 height 1.0 CALL |!this.SelectElement('EXCL')|
+				 button .ExclElemClearList 		'Очистить'					 at x 0   y 1.5   width 15 height 1.0 CALL |!this.ClearList('EXCL')|
+				 list .ExclElemList											 at x 17  y 0     width 50 lines  6
+			 exit
+				 Option .TypeClashList 			'Поиск коллизий'			 at x 3   y 19.5  width 49
+			 frame .ClashFrame 					'Проверка на коллизии'		 at x 0   y 20.5
+				 button .buttonCheckCE 			'Проверить на коллизии'		 at x 0   y 0.25  width 15 height 1.0 CALL |!this.CheckCollision()|
+				 button .buttonCurrentElement 	'Перейти на коллизию'		 at x 0   y 1.5   width 15 height 1.0 CALL |!this.GoToCurrentElement()|
+ 				 button .ClashElemClearList		'Очистить'					 at x 0   y 2.75  width 15 height 1.0 CALL |!this.ClearList('CLASH')|
+ 				$( button .buttonApproveActivate  		'ќдобрить коллизию' 		 	  at x 0   y 8.0   width 15 			  CALL |!this.ApproveClash('ACTIVATE')|
+				 button .buttonApproveSave	 		'—охранить одобренные' 		  at x 0   y 9.25  width 15 			  CALL |!this.ApproveClash('SAVE')|
+				 button .buttonApproveRemove 			'—н¤ть одобрение' 			 	  at x 0   y 10.5  width 15 			  CALL |!this.ApproveClash('REMOVE')|
+ 				 button .buttonCheckCEApprove 		'ѕроверить искл. одобр.'		 	  at x 0   y 11.75 width 15 			  CALL |!this.ApproveClash('LOADWITHOUTAPPROVE')|$)
+		         list .CollisionList										 at x 17  y 0     width 50 lines 20
+			 exit
+				 button .buttonGetReport 		'Получить отчет'			 at x 0   y 35.25 width 69 height 1.0 CALL |!this.GetReport( )|
+				 --text .Mark1 'тест' 										-- at x 0   y 36.25
+			 frame .FindClash 					'Итоговый отчет'			 at x 20  y 36.5  width 24 height 0
+				 PARAGRAPH .MessageNumberClashes 							 at x 0.5 y 0  	  width 15 height 0.8
+				 PARAGRAPH .MessageNumberTouches 							 at x 0.5 y 1     width 15 height 0.8
+				 PARAGRAPH .MessageNumberClearence 							 at x 0.5 y 2     width 15 height 0.8
+			    --PARAGRAPH .MessageNumberNotproven 							 at x 0.5 y 1.95  width 15 height 0.8
+			 exit
+ 			 frame .ReportClash 				'Наименование отчета'		 at x 46  y 36.5  width 24 height 0
+				 button .NameStationBut 		'Объект'					 at x 0   y 0 	  width 7 height 0.8 CALL |!this.GetNameBuild( )|
+				 Option .NameStation 							 		 	 at x 9   y 0  	  width 9 
+				 button .NameBuildBut 			'Здание'					 at x 0   y 1 	  width 7 height 0.8 CALL |!this.GetNameSystem( )|			 
+				 Option .NameBuild 									 	 	 at x 9   y 1  	  width 9
+				 --button .NameSystemBut 			'Система'					 at x 0   y 2 	  width 7 height 0.8
+				 --				 CALL |!this.GetNameReport( )|
+				 Option .NameSystem 								 	 	 at x 9   y 2     width 9
+			 exit
+				 button .buttonHelp 			'Справка' 					 at x 0   y 36.5  width 17 height 1.0 CALL |!this.Help()|
+				 button .buttonDismiss 			'Выход' 					 at x 0   y 37.75 width 17 height 1.0 CANCEL
+				 -- button .buttonCountClashAct	' оличество коллизий ACT'		 at x 0   y 38	  width 17 height 1.0 CALL |!this.ReadActualPrimaryClash( '***ACTUAL' , 'COUNTELEM' )|
+ 				 -- button .buttonCountClashPr	' оличество коллизий PR'		 at x 0   y 40	  width 17 height 1.0 CALL |!this.ReadActualPrimaryClash( '***PRIMARY' , 'COUNTELEM' )|
+	 exit
+-----------------------------------------------------------------------
+-- Method:		BSSClashesNEW
+-- Description:	 Конструктор
+-- Method Type:   
+-- Arguments:	
+-- Return:		
+------------------------------------------------------------------------
+Define method .BSSClashesDebugNET()
+	 -- установка заголовка на закладках провер¤емых и исключаемых элементов, таблицы коллизий
+	 !AttrElem[1] = 'RefNo выбранных элементов'
+	 !this.CollisionList.SetHeadings ( SPLIT ('Номер / Тип коллизии#Элементы#Тип элемента#Владелец#ZONE элемента#SITE элемента#Координаты коллизии#Степень коллизии' , '#') )
+	 -- установка начальных значений дл¤ frame " оличество коллизий"
+	 !this.MessageNumberClashes.val = 'пересечение'
+	 !this.MessageNumberTouches.val = 'касание'
+	 !this.MessageNumberClearence.val = 'зазор'
+	 --!this.MessageNumberNotproven.val = 'недоказанные'
+
+	 !ClashListType[1] = 'АКТУАЛЬНЫЕ'
+ 	 !ClashListType[2] = 'ПЕРВИЧНЫЕ'
+  	 !This.TypeClashList.DText = !ClashListType
+
+	 -- список станций
+     !NameStation[1] = ' '
+	 !NameStation[2] = 'Казанская ТЭЦ-3'
+     !NameStation[3] = 'Полярная ГТЭС'
+     !This.NameStation.DText = !NameStation 
+
+Endmethod
+------------------------------------------------------------------------
+-- Method:		SelectElement
+-- Description:	выбор провер¤емых и исключаемых элементов
+-- Method Type:	
+-- Arguments:	!MarkOfSelect - марка дл¤ обозначени¤ списка, в который необходимо добавить элементы
+-- Return:		
+------------------------------------------------------------------------
+Define method .SelectElement( !MarkOfSelect is STRING )
+	 !RefNoCheckExclObst = REFNO
+	 !TypeCheckExclObst = TYPE OF CE
+	 !NameCheckExclObst = NAME OF CE
+	 !CheckExclObst = '$!TypeCheckExclObst' & ' ' & '$!NameCheckExclObst'
+	 !dtext = '$!CheckExclObst'
+ 		 !!StringForCheckGlob = 'null'
+		 !!StringForObstGlob = 'null'
+-- ‘ќ–ћ»–ќ¬јЌ»≈ Ћ»—“ј ѕ–ќ¬≈–я≈ћџ’ ЁЋ≈ћ≈Ќ“ќ¬
+	 IF ( '$!MarkOfSelect' EQ 'CHECK' ) THEN
+		 !this.CheckElemList.Add( '$!dtext' )
+-- ‘ќ–ћ»–ќ¬јЌ»≈ Ћ»—“ј –ј——ћј“–»¬ј≈ћџ’ ЁЋ≈ћ≈Ќ“ќ¬
+	 ELSEIF ( '$!MarkOfSelect' EQ 'OBST' ) THEN
+		 !this.ObstElemList.Add( '$!dtext' )
+	 -- добавление всех пересекающихс¤ элементов SITE модели
+	 ELSEIF ( '$!MarkOfSelect' EQ 'ALLMODELOBST' ) THEN
+		 IF ( TYPE OF CE NEQ 'WORL' ) THEN
+			 !!Alert.Error ( 'ѕерейдите на элемент иерархии WORLD' )
+			 RETURN
+		 ENDIF
+		 VAR !ObstSiteNeqTmpTaskDemoScanUnset COLL ALL SITE WITH (PURP NEQ 'TMP') AND (PURP NEQ 'TASK') AND (PURP NEQ 'DEMO') AND (PURP NEQ 'SCAN') AND (PURP NEQ '')
+		 !SiteAllModel = !ObstSiteNeqTmpTaskDemoScanUnset.Size()
+	 -- ѕ–ќ¬≈– ј Ќј ѕ≈–≈—≈„≈Ќ»≈ WVOL ¬џЅ–јЌЌџ’ ЁЋ≈ћ≈Ќ“ќ¬ CHECK » OBST
+			 -- —„»“џ¬јЌ»≈ CHECK
+			 -- считывание массива из LIST с информацией о провер¤емых элементах
+			 !CheckElemRtext = !this.CheckElemList.Rtext
+			 !SizeCheckElem = !CheckElemRtext.Size()
+			 DO !iChRtext from 1 to $!SizeCheckElem
+				 -- считывание имени провер¤емых элементов
+				 !CheckElemName[$!iChRtext] = PART ( '$!CheckElemRtext[$!iChRtext]' , 2 )
+				 --$p 142 check elem $!CheckElemName[$!iChRtext]
+				 -- получение RefNo по имени провер¤емого элемента
+				 !CheckElemRefNo[$!iChRtext] = RefNo of $!CheckElemName[$!iChRtext]
+			 ENDDO
+  				 -- запись в одну строку дл¤ применени¤ команды CHECK
+			 !StringForCheck = ''
+			 DO !iCheck from 1 to $!SizeCheckElem
+				 !StringForCheck = '$!StringForCheck' & ' ' & '$!CheckElemRefNo[$!iCheck]'
+			 ENDDO
+			 -- защита от пустых списков рассматриваемых и провер¤емых элементов
+			 IF ( '$!StringForCheck' EQ '' ) THEN
+				 !!Alert.Error ( 'Не выбраны проверяемые элементы!' )
+				 RETURN
+			 ENDIF
+			 -- —„»“џ¬јЌ»≈ OBST
+			 -- получение NAME по RefNo провер¤емых элементов
+			 DO !iObstSite from 1 to $!SiteAllModel
+				 $!ObstSiteNeqTmpTaskDemoScanUnset[$!iObstSite]
+				 -- считывание имени провер¤емых элементов
+				 !ObstElemName[$!iObstSite] = NAME OF CE
+				 --$p 162 obst elem $!ObstElemName[$!iObstSite]
+			 ENDDO
+			 -- ѕќЋ”„≈Ќ»≈ ќЅЏ≈ћќ¬ WVOL ” ѕ–ќ¬≈–я≈ћџ’ » –ј——ћј“–»¬ј≈ћџ’ ЁЋ≈ћ≈Ќ“ќ¬
+			 VAR !WvolArrayCheck evaluate wvol for all from !CheckElemName
+			 VAR !WvolArrayObst evaluate wvol for all from !ObstElemName
+				 !SizeCheck = !WvolArrayCheck.Size()
+				 !SizeObst = !WvolArrayObst.Size()
+			 -- ќѕ–≈ƒ≈Ћ≈Ќ»≈ ѕ≈–≈—≈ јёў»’—я ЁЋ≈ћ≈Ќ“ќ¬ CHECK » OBST
+			 DO !iObstWvol from 1 to $!SizeObst		$(цикл по OBST$)
+ 			 -- $p $!ObstElemName[$!iObstWvol]
+				 DO !iCheckWvol from 1 to $!SizeCheck		$(цикл по CHECK $)
+				 -- $p $!CheckElemName[$!iCheckWvol]
+					 IF ( !this.wvolClash ( '$!WvolArrayCheck[$!iCheckWvol]' , '$!WvolArrayObst[$!iObstWvol]' ) EQ 1 ) THEN
+						 !ObstListArray[$!iObstWvol] = $!ObstSiteNeqTmpTaskDemoScanUnset[$!iObstWvol]
+						 ENDIF
+				 ENDDO
+			 ENDDO
+			 !ObstListArray.Sort()
+			 !StringForObst = ''
+			 !ObstListArraySize = !ObstListArray.Size()
+ 			 DO !iObst from 1 to $!ObstListArraySize
+				 $!ObstListArray[$!iObst]
+				 !ObstSiteElemName[$!iObst] = NAME OF CE
+				 !ObstSiteElemType[$!iObst] = TYPE OF CE
+			 	 !ObstElemNameType[$!iObst] = '$!ObstSiteElemType[$!iObst]' & ' ' & '$!ObstSiteElemName[$!iObst]'
+				 !dtextObstSite[$!iObst] = '$!ObstSiteElemType[$!iObst]' & ' ' & '$!ObstSiteElemName[$!iObst]'
+				 !this.ObstElemList.Add( '$!dtextObstSite[$!iObst]' )
+				 !StringForObst = '$!StringForObst' & ' ' & '$!ObstListArray[$!iObst]'
+			 ENDDO
+	 		 -- присвоение строчных переменных глобальным
+			 !!StringForCheckGlob = '$!StringForCheck'
+			 !!StringForObstGlob = '$!StringForObst'
+-- ‘ќ–ћ»–ќ¬јЌ»≈ Ћ»—“ј »— Ћё„ј≈ћџ’ ЁЋ≈ћ≈Ќ“ќ¬
+	 ELSEIF ( '$!MarkOfSelect' EQ 'EXCL' ) THEN
+			 !this.ExclElemList.Add( '$!dtext' )
+	 ENDIF
+ 	 HANDLE ANY $*
+		 RETURN
+	 ENDHANDLE
+Endmethod
+------------------------------------------------------------------------
+-- Method:		ClearList
+-- Description:	очищение списков провер¤меых и исключаемых элементов, списка найденных коллизий и их количества
+-- Method Type:  
+-- Arguments:	!MarkOfClear - марка дл¤ обозначени¤ списка, который необходимо очистить
+-- Return:		
+------------------------------------------------------------------------
+Define method .ClearList( !MarkOfClear is STRING )
+	 IF ( '$!MarkOfClear' EQ 'OBST' ) THEN
+		 !this.ObstElemList.clear()
+	 ELSEIF ( '$!MarkOfClear' EQ 'EXCL' ) THEN
+		 !this.ExclElemList.clear()
+	 ELSEIF ( '$!MarkOfClear' EQ 'CHECK' ) THEN
+		 !this.CheckElemList.clear()		 
+	 ELSEIF ( '$!MarkOfClear' EQ 'CLASH' ) THEN
+		 !this.CollisionList.clear()
+	 	 !this.MessageNumberClashes.val = 'пересечение'
+		 !this.MessageNumberTouches.val = 'касание'
+		 !this.MessageNumberClearence.val = 'зазор'
+		 --!this.MessageNumberNotproven.val = 'NOTPROVEN'
+	 ENDIF
+Endmethod
+------------------------------------------------------------------------
+-- Method:	  	CheckCollision
+-- Description:	проверка на коллизии текущего элемента
+-- Method Type:  
+-- Arguments:	  
+-- Return:		  
+------------------------------------------------------------------------
+Define method .CheckCollision()
+	 -- ѕќЋ”„≈Ќ»≈ »Ќ‘ќ–ћј÷»» ќ ѕ–ќ¬≈–я≈ћџ’ ЁЋ≈ћ≈Ќ“ј’
+	 IF ( '$!!StringForCheckGlob' EQ 'null' ) THEN
+	 	 --$p 234
+		 !!CheckElem = !this.CheckElemList.Rtext
+		 !SizeCheckElem = !!CheckElem.Size()
+				 -- запись в одну строку
+	 !StringForCheck = ''
+		 DO !iCheck from 1 to $!SizeCheckElem
+			 !StringForCheck = '$!StringForCheck' & ' ' & '$!!CheckElem[$!iCheck]'
+			 !!DescCheckElem[$!iCheck] = DESC OF $!!CheckElem[$!iCheck]
+			 $p desc check elem $!iCheck $!!DescCheckElem[$!iCheck]
+		 ENDDO
+		 !!StringForCheckGlob = '$!StringForCheck'
+	 ENDIF
+
+	 -- ѕќЋ”„≈Ќ»≈ »Ќ‘ќ–ћј÷»» ќ –ј——ћј“–»¬ј≈ћџ’ ЁЋ≈ћ≈Ќ“ј’
+	 IF ( '$!!StringForObstGlob' EQ 'null' ) THEN
+		 --$p 248
+		 !!ObstElem = !this.ObstElemList.Rtext
+		 !SizeObstElem = !!ObstElem.Size()
+				 -- запись в одну строку
+		 !StringForObst = ''
+		 DO !iObst from 1 to $!SizeObstElem
+			 !StringForObst = '$!StringForObst' & ' ' & '$!!ObstElem[$!iObst]'
+			 !!DescObstElem[$!iObst] = DESC OF $!!ObstElem[$!iObst]
+			 --$p desc obst elem $!iObst $!!DescObstElem[$!iObst]
+		 ENDDO
+		 !!StringForObstGlob = '$!StringForObst'
+	 ENDIF
+		 -- ѕќЋ”„≈Ќ»≈ »Ќ‘ќ–ћј÷»» ќЅ »— Ћё„ј≈ћџ’ ЁЋ≈ћ≈Ќ“ј’
+		 !!ExclElem = !this.ExclElemList.Rtext
+		 !SizeExclElem = !!ExclElem.Size()
+		 DO !iExRtext from 1 to $!SizeExclElem
+			 -- считывание имени провер¤емых элементов
+			 !ExclElemName[$!iExRtext] = PART ( '$!!ExclElem[$!iExRtext]' , 2 )
+			 !!DescExclElem[$!iExRtext] = DESC OF $!ExclElemName[$!iExRtext]
+			 --$p desc excl elem $!iExRtext $!!DescExclElem[$!iExRtext]
+			 -- получение RefNo по имени провер¤емого элемента
+			 !ExstElemRefNo[$!iExRtext] = RefNo of $!ExclElemName[$!iExRtext]
+		 ENDDO
+				 -- запись в одну строку дл¤ применеи¤ команды EXCL
+		 !StringForExcl = ''
+		 DO !iExcl from 1 to $!SizeExclElem
+			 !StringForExcl = '$!StringForExcl' & ' ' & '$!ExstElemRefNo[$!iExcl]'
+		 ENDDO
+		 -- присвоение строчных переменных глобальным
+		 !!StringForExclGlob = '$!StringForExcl'
+		 --$p StringForExcl $!!StringForExclGlob
+ --------------------------
+ -- ѕ–ќ¬≈– ј Ќј  ќЋЋ»«»» --
+     -- считывание информации о типе проверки (¬ывод актуальных или первичных коллизий)
+	 !This.TypeClashList.Callback = |!ChGost = !This.TypeClashList.Selection('DText')|
+     !ChCreate = !This.TypeClashList.Selection('DText')
+	 DESCLASH
+	 $( $p beforeDesclash
+	 q clash obstr
+	 q clash excl
+	 q clash check
+	 q clash options
+	 q clash limits
+	 q clash obstruction hull design
+	 q clash obstruction hull production
+	 q clash touching
+	 q clash clearance
+	 q clash ignore
+	 q clash rep $)
+		 -- вывод в командную строку информации о коллизи¤х
+		 REPORT MAIN ON
+		 REPORT HEADER ON
+		 REPORT SUMMARY ON
+	     REPORT OBST ON
+		 -- очищение списков провер¤емых и исключаемых элементов
+		 REM OBST ALL
+		 REM EXCL ALL
+		 -- задание списка рассматриваемых элементов
+			 --$p obst $!!StringForObstGlob
+			 OBST $!!StringForObstGlob
+		 -- задание списка исключаемых элементов
+		 IF ( '$!!StringForExclGlob' NEQ '' ) THEN
+			 --$p excl $!!StringForExclGlob
+			 EXCL $!!StringForExclGlob
+		 ENDIF
+		 -- отключение лимитов проверки
+		 LIMITS NONE
+		 INCLUDE TOUCHES
+		 -- задание списка провер¤емых элементов
+		 -- исключние повторов
+		 REPORT FIRST ALL
+		 -- определение типа проверки коллизий (PRIMARY или ACTUAL)
+		 IF ( '$!ChCreate' EQ 'ПЕРВИЧНЫЕ' ) THEN
+			 REPORT NUMBER ON
+			 REPORT HEADER ON
+			 REPORT SUMMARY ON
+			 --дл¤ корректиной работы нужно OFF
+			 REPORT MAIN ON
+			 REPORT OBSTRUCTION OFF
+			 REPORT PRIMARY ON
+			 FILE /C:\Kol\ClashPrimaryON.txt OVER
+			 !MarkPrClash = 'YES'
+		 ELSEIF ( '$!ChCreate' EQ 'АКТУАЛЬНЫЕ' ) THEN
+			 REPORT PRIMARY OFF
+			 !MarkPrClash = 'NO'
+		 ENDIF
+		 --Obstruction Hull Production ON
+		 -- ѕ≈–≈«јѕ»—№ ‘ј…Ћј ќ“„≈“ј
+		 OVERRIDE ON
+		 MIDPOINT ON
+			 --$p check $!!StringForCheckGlob
+			 Q CLASH EXCL
+			 q CLASH OBST
+			 CHECK $!!StringForCheckGlob
+ 	 $($p afterDesclash
+	  q clash obstr
+	  q clash excl
+	  q clash check
+	  q clash options
+	  q clash limits
+	  q clash obstruction hull design
+	  q clash obstruction hull production
+	  q clash touching
+	  q clash clearance
+	  q clash ignore
+	  q clash rep$)
+		 IF ( $!MarkPrClash EQ YES ) THEN
+			 FILE END
+		 ENDIF
+	 EXIT
+ -----  ќЌ≈÷ ѕ–ќ¬≈– » -----
+ --------------------------
+				 !NumberClash = 0
+			 -- ѕќЋ”„≈Ќ»≈ »Ќ‘ќ–ћј÷»» ќ Ќј…ƒ≈ЌЌџ’  ќЋЋ»«»я’
+			 VAR !AllClashes CLASH COUNT CLASHES					$(количество пересечений$)
+			 VAR !AllTouches CLASH COUNT TOUCHES 					$(количество касаний$)
+			 VAR !AllClearence CLASH COUNT CLEARANCES				$(количество зазоров$)
+			 VAR !AllNotproven CLASH COUNT NOTPROVEN				$(количество недоказанных $)
+			 !NumberClashes = !AllClashes.Real()
+			 !NumberTouches = !AllTouches.Real()
+			 !NumberClearence = !AllClearence.Real()
+			 !NumberNotproven = !AllNotproven.Real()
+
+			 IF ( $!NumberNotproven NEQ 0 ) THEN
+				 !!ALERT.MESSAGE ( 'Количество коллизий Notproven не равно 0. Обратитесь к САПР специалисту' )
+				 --  оллизии Notproven никогда не выходили при тестировании. Ќеобходимо пон¤ть отчего они по¤вл¤ютс¤.
+			 ENDIF
+			 -- создание глобальных переменных дл¤ составлени¤ отчета
+			 !!NumberClashesGlob = $!NumberClashes
+			 !!NumberTouchesGlob = $!NumberTouches
+			 !!NumberClearenceGlob = $!NumberClearence
+			 !!NumberNotprovenGlon = $!NumberNotproven 
+
+		 -- ѕќƒ—„≈“ ќЅў≈√ќ  ќЋ»„≈—“¬ј  ќЋЋ»«»…
+			 -- ≈—Ћ» “»ѕ ѕ–ќ¬≈– » ACTUAL	 
+		 IF ( '$!ChCreate' EQ 'АКТУАЛЬНЫЕ' ) THEN
+			 !NumberClash = $!NumberClashes + $!NumberTouches + $!NumberClearence + $!NumberNotproven
+			 -- ≈—Ћ» “»ѕ ѕ–ќ¬≈– » PRIMARY
+		 ELSEIF ( '$!ChCreate' EQ 'ПЕРВИЧНЫЕ' ) THEN
+		 	 !NumberClash = !this.ReadActualPrimaryClash('***ACTUAL' , 'SUMMACTUAL')
+ 		 ENDIF
+		  !NumberClashAll = $!NumberClashes + $!NumberTouches + $!NumberClearence + $!NumberNotproven
+		 -- $p общее количество коллизий $!NumberClash
+		 -- если количесвто коллизий = 0, то выход из метода
+		 IF ( $!NumberClash EQ 0 ) THEN
+			 !!ALERT.MESSAGE ( 'коллизий не обнаружено' )
+			 !this.CollisionList.clear()
+				 !NumberClashAll = 0
+				 !NumberClashes = 0
+				 !NumberTouches = 0
+				 !NumberClearence = 0
+				 !Arr1 = ARRAY()
+				 !Arr1[1] = 'CLASHNOTFOUND'
+				 !Arr2 = ARRAY()
+				 !Arr2[2] = 'CLASHNOTFOUND'
+				 !Arr3 = ARRAY()
+				 !Arr3[3] = 'CLASHNOTFOUND'
+				 !Arr4 = ARRAY()
+				 !Arr4[4] = 'CLASHNOTFOUND'
+
+				 !!ClashesTouchGap = 0
+				 !!ClashesTouchOver = 0
+				 !!ClashesClearance = 0
+				 !!ClashesOption = 0
+				 !!ClashesIgnore = 0
+				 !!ClashesLimits = 0
+				 !!ClashesObst = 0
+				 !!ClashesExcl = 0
+
+				 !!AllTotalClash[1] = 0 
+				 !!AllTotalClash[2] = 0 
+				 !!AllTotalClash[3] = 0 
+				 !!AllTotalClash[4] = 0 
+				 !!AllTotalClash[5] = 0 
+				 !!AllTotalClash[6] = 0 
+				 !!AllTotalClash[7] = 0 
+				 !!AllTotalClash[8] = 0 
+				 !!AllTotalClash[9] = 0 
+
+				 !!FileWriteElem = !this.AddInformationOnForm( !Arr1 , !Arr2 , !Arr3 , !Arr4 , 0 , 0 , 0 , 0 , 0 )
+			 RETURN
+		 ENDIF
+		 -- вывод информации о количестве различного типа коллизий на форму
+	 	 !this.MessageNumberClashes.val = 'пересечение ' & '$!NumberClashes'
+		 !this.MessageNumberTouches.val = 'касание ' & '$!NumberTouches'
+		 !this.MessageNumberClearence.val = 'зазор ' & '$!NumberClearence'
+		 -- !this.MessageNumberNotproven.val = 'NOTPROVEN ' & '$!NumberNotproven'
+
+		 -- ѕќЋ”„≈Ќ»≈ »Ќ‘ќ–ћј÷»» ќ Ќј…ƒ≈ЌЌџ’  ќЋЋ»«»я’
+		 DO !iClash from 1 to $!NumberClash
+			 VAR !ClashesFirst CLASH $!iClash FIRST				$(первый элемент коллизии $)
+			 VAR !ClashesSecond CLASH $!iClash SECOND			$(второй элемент коллизии $)
+			 VAR !ClashesType CLASH $!iClash TYPE				$(тип коллизии $)
+			 VAR !ClashesPosition CLASH $!iClash POSITION		$(мировые координаты коллизии $)
+			 !ClashesFirstAr[$!iClash] = '$!ClashesFirst'
+			 -- $p ClashesFirstAr		$!ClashesFirstAr[$!iClash] 
+			 !ClashesSecondAr[$!iClash] = '$!ClashesSecond'
+			 -- $p ClashesSecondAr		$!ClashesSecondAr[$!iClash]
+			 !ClashesTypeAr[$!iClash] =  PART ( '$!ClashesType' , 1 , ' ' )
+			 !ClashesPositionAr[$!iClash] = '$!ClashesPosition'
+		 ENDDO
+
+		 -- ѕќЋ”„≈Ќ»≈ »Ќ‘ќ–ћј÷»» ќ Ќј—“–ќ… ј’ ѕ–ќ¬≈– » Ќј  ќЋЋ»«»» » —ѕ»— ј’ OBST » EXCL
+		 VAR !!ClashesTouchGap 	CLASH TOUCH GAP			 		$(соприкосновение $)
+		 VAR !!ClashesTouchOver CLASH TOUCH OVERLAP		 		$(перекрытие $)
+		 VAR !!ClashesClearance CLASH CLEARANCE			 		$(зазор $)
+		 VAR !!ClashesOption 	CLASH OPT					 	$(опци¤ проверки ??? $)
+		 VAR !!ClashesIgnore	CLASH IGNORE					$(игнорируемые элементы $)
+		 VAR !!ClashesLimits 	CLASH LIMITS					$(ограничени¤ $)
+		 VAR !!ClashesObst 		CLASH OBST						$(список обструкции $)
+		 VAR !!ClashesExcl 		CLASH EXCL						$(список исключаемых элементов $)
+
+		 -- ѕќƒ—“„≈“  ќЋЋ»«»… –ј«Ћ»„Ќќ… —“≈ѕ≈Ќ»
+		 !TypeClash = !this.CountTypeClashes( !ClashesTypeAr , $!NumberClashAll )
+
+		 -- ѕќЋ”„≈Ќ»≈ »Ќ‘ќ–ћј÷»» ќ ѕ≈–¬ќћ ЁЋ≈ћ≈Ќ“≈  ќЋЋ»«»»
+		 !InformClashesFirst = !this.InformationAboutClashes( !ClashesFirstAr , $!NumberClash )
+
+	     -- ѕќЋ”„≈Ќ»≈ »Ќ‘ќ–ћј÷»» ќ ¬“ќ–ќћ ЁЋ≈ћ≈Ќ“≈  ќЋЋ»«»»
+		 !InformClashesSecond = !this.InformationAboutClashes( !ClashesSecondAr , $!NumberClash )
+
+		 -- ¬џ¬ќƒ »Ќ‘ќ–ћј÷»» ќ Ќј…ƒ≈ЌЌџ’  ќЋЋ»«»я’ Ќј ‘ќ–ћ” » ¬ ‘ј…Ћ
+		 -- $p  оличество коллизий $!NumberClash
+		 
+			 !!FileWriteElem = !this.AddInformationOnForm( !InformClashesFirst , !InformClashesSecond , !ClashesPositionAr , !ClashesTypeAr , $!NumberClashes , $!NumberTouches , $!NumberClearence , $!NumberNotproven , $!NumberClash )
+		 -- !ClashesPositionAr
+Endmethod
+------------------------------------------------------------------------
+-- Method:		CountTypeClashes
+-- Description:	подсчет коллизий разного типа
+-- Method Type: 
+-- Arguments:	!ClashesType - массив размерности NumberClash, хран¤щий коллизии различного вида , !NumberClash - общее количество коллизий различного вида 
+-- Return:		!TotalClash - массив размерности 9, хран¤щий коллизии различного вида
+------------------------------------------------------------------------
+Define method .CountTypeClashes( !ClashesType is ARRAY , !NumberClash is REAL ) is ARRAY
+		 -- задание начального значени¤ счетчику различных типов коллизий
+		  !TotalClash[1] = 0
+		  !TotalClash[2] = 0
+		  !TotalClash[3] = 0
+		  !TotalClash[4] = 0
+		  !TotalClash[5] = 0
+		  !TotalClash[6] = 0
+		  !TotalClash[7] = 0
+		  !TotalClash[8] = 0
+		  !TotalClash[9] = 0
+		 -- цикл по всем коллизи¤м дл¤ считывани¤ информации об участвующих элементах
+		 DO !iClash from 1 to $!NumberClash
+			 -- преобразование считываемых переменных типа STRING в тип ARRAY
+			 !ClashesTypeAr[$!iClash] = PART ( '$!ClashesType[$!iClash]' , 1 , ' ' )			$(тип коллизии $)
+			 -- подсчет коллизий различного типа
+			 IF ( '$!ClashesTypeAr[$!iClash]' EQ 'HH' ) THEN
+				 !TotalClash[1] = $!TotalClash[1] + 1
+			 ELSEIF ( '$!ClashesTypeAr[$!iClash]' EQ 'HS' ) THEN
+				 !TotalClash[2] = $!TotalClash[2] + 1
+			 ELSEIF ( '$!ClashesTypeAr[$!iClash]' EQ 'HI' ) THEN
+				 !TotalClash[3] = $!TotalClash[3] + 1
+			 ELSEIF ( '$!ClashesTypeAr[$!iClash]' EQ 'SS' ) THEN
+				 !TotalClash[4] = $!TotalClash[4] + 1
+			 ELSEIF ( '$!ClashesTypeAr[$!iClash]' EQ 'SH' ) THEN
+				 !TotalClash[5] = $!TotalClash[5] + 1
+			 ELSEIF ( '$!ClashesTypeAr[$!iClash]' EQ 'SI' ) THEN
+				 !TotalClash[6] = $!TotalClash[6] + 1
+			 ELSEIF ( '$!ClashesTypeAr[$!iClash]' EQ 'II' ) THEN
+				 !TotalClash[7] = $!TotalClash[7] + 1
+			 ELSEIF ( '$!ClashesTypeAr[$!iClash]' EQ 'IH' ) THEN
+				 !TotalClash[8] = $!TotalClash[8] + 1
+ 			 ELSEIF ( '$!ClashesTypeAr[$!iClash]' EQ 'IS' ) THEN
+				 !TotalClash[9] = $!TotalClash[9] + 1
+			 ENDIF
+ 		 ENDDO
+		 !!AllTotalClash = !TotalClash
+	 RETURN !TotalClash
+Endmethod
+------------------------------------------------------------------------
+-- Method:		InformationAboutClashes
+-- Description:	получение информации об элементе коллизии:
+--															- тип элемента коллизиии
+--															- владелец элемента коллизии
+--															- дата последнего изменени¤ элемента коллизии
+--															- автор последнего изменени¤ элемента коллизии
+--															- отдел, в котором работает автор последнего изменени¤
+-- Method Type:	
+-- Arguments:	!ClashesElem - строкова¤ переменна¤, содержаща¤ референтный номер коллизии; !NumberClash - общее количество коллизий различного вида 
+-- Return:		!InformClashes - массив, содержаший информацию об элементе коллизии
+------------------------------------------------------------------------
+Define method .InformationAboutClashes( !ClashesElem is ARRAY , !NumberClash is REAL ) is ARRAY
+		 DO !iClash from 1 to $!NumberClash
+			 -- получение информации о референтном номере элемента коллизии
+			 !ClashesElemArRefNo[$!iClash] = PART ( '$!ClashesElem[$!iClash]' , 1 , ' ' )		$(элемент коллизии $)
+			 --!MarkText = '
+			 !ClashesElemAr[$!iClash] = | | & |$!ClashesElemArRefNo[$!iClash]|
+			 -- $p ClashesElemAr $!ClashesElemAr[$!iClash] 
+			 -- ѕќЋ”„≈Ќ»≈ »Ќ‘ќ–ћј÷»» ќЅ ЁЋ≈ћ≈Ќ“≈  ќЋЋ»«»»
+			 $!ClashesElemArRefNo[$!iClash]
+				 -- получение информации о типе первого элемента коллизии
+				 !ClashesElemType[$!iClash] = TYPE
+				 -- получение информации о владельце первого элемента коллизии
+				 !ClashesElemOwnerName[$!iClash] = NAME OF OWNER
+				 !ClashesElemOwner[$!iClash] = | | & |$!ClashesElemOwnerName[$!iClash]|
+				 -- получение информации о б элементе ZONE
+				 !ClashesElemZoneName[$!iClash] = NAME OF ZONE OF $!ClashesElemArRefNo[$!iClash]
+				 !ClashesElemZone[$!iClash] = | | & |$!ClashesElemZoneName[$!iClash]|
+				 -- получение информации о б элементе SITE	 
+				 !ClashesElemSiteName[$!iClash] = NAME OF SITE OF $!ClashesElemArRefNo[$!iClash]
+				 !ClashesElemSite[$!iClash] = | | & |$!ClashesElemSiteName[$!iClash]|
+				 -- получение информации об авторе элемента и дате последнего изменени¤
+				 VAR !HistFirst SPLIT(HISTORY)
+				 VAR !CEDBFirst DBNAME
+				 !DBOFirst = OBJECT DB( !CEDBFirst )
+				 DO !iFirst FROM 1 TO !HistFirst.SIZE()
+					 !AuthorFirst = !DBOFirst.SESSION($!HistFirst[$!iFirst]).AUTHOR
+					 !DateFirst = !DBOFirst.SESSION($!HistFirst[$!iFirst]).DATE
+				 ENDDO
+				 -- получение информации о пользователе, последним изменившем первый элемент коллизии
+					 --!ClashesElemUser[$!iClash] = '$!AuthorFirst'
+				 -- получение информации об отделе пользовател¤
+					 --!DepartFirst = SUBSTRING ( '$!CEDBFirst' , 0 , 3 )
+					 --!ClashesElemDepart[$!iClash] = !this.InformationAboutDepart( '$!DepartFirst' )
+				 -- задание переменной дл¤ даты последнего изменени¤ первого элемента коллизии
+					 --!ClashesElemDate[$!iClash] = '$!DateFirst'
+		 ENDDO
+		 -- формирование многомерного выходного массива
+ 		 !InformClashes[1] = !ClashesElemAr
+		 !InformClashes[2] = !ClashesElemType
+		 !InformClashes[3] = !ClashesElemOwner
+		 !InformClashes[4] = !ClashesElemZone
+		 !InformClashes[5] = !ClashesElemSite
+		 !InformClashes[6] = !ClashesElemArRefNo		 
+
+	 RETURN !InformClashes
+Endmethod
+------------------------------------------------------------------------
+-- Method:		InformationAboutDepart
+-- Description:	получение информации об отделе, в котором работает пользователь
+-- Method Type:	
+-- Arguments:	!DepartFromDb - первые буквы названи¤ базы данных, в которой работает пользователь
+-- Return:		!ClashesDepart - аббревиатура отдела, в котором работает пользователь
+------------------------------------------------------------------------
+Define method .InformationAboutDepart( !DepartFromDb is STRING ) is STRING
+			 IF ( ( '$!DepartFromDb' EQ 'AR' ) OR ( '$!DepartFromDb' EQ 'MG' ) ) THEN
+				 !ClashesDepart = 'ј—ќ'
+			 ELSEIF ( '$!DepartFromDb' EQ 'AS' ) THEN
+				 !ClashesDepart = 'ќј—”'
+			 ELSEIF ( '$!DepartFromDb' EQ 'ET' ) THEN
+				 !ClashesDepart = 'Ё“ќ'
+			 ELSEIF ( '$!DepartFromDb' EQ 'TM' ) THEN
+				 !ClashesDepart = '“ћќ'
+			 ELSEIF ( ( '$!DepartFromDb' EQ 'HV' ) OR ( '$!DepartFromDb' EQ 'VK' ) ) THEN
+				 !ClashesDepart = '—“ќ'
+			 ELSEIF ( ( '$!DepartFromDb' EQ 'PA' ) OR ( '$!DepartFromDb' EQ 'PC' ) OR ( '$!DepartFromDb' EQ 'PT' ) ) THEN
+				 !ClashesDepart = 'ќ—ѕ—'
+			 ELSE
+				 !ClashesDepart = 'не найдено'
+			 ENDIF
+		 RETURN !ClashesDepart
+Endmethod
+------------------------------------------------------------------------
+-- Method:		AddInformationOnForm - ѕарсер
+-- Description:	помещение информации о коллизи¤х в таблицу на форму
+-- Method Type:	
+-- Arguments:	!InformClashesFirst - массив, содержащий информацию о первом элементе коллизии
+--				!InformClashesSecond - массив, содержащий информацию о втором элементе коллизии
+--				!ClashesPositionESD - массив, содержащих мировые координаты коллизии
+-- 				!ClashesType - массив, содержащий количество коллизий различного вида
+-- Return:		!FileWriteElem - массив, содержащий строки дл¤ записи в csv отчет о найденных коллизи¤х
+------------------------------------------------------------------------
+Define method .AddInformationOnForm( !InformClashesFirst is ARRAY , !InformClashesSecond is ARRAY , !ClashesPosition is ARRAY , !ClashesType is ARRAY , !NumberClashes is REAL , !NumberTouches is REAL , !NumberClearence is REAL , !NumberNotproven is REAL , !NumberClash is REAL ) is ARRAY
+-- !ClashesPosition is ARRAY 
+--!this.AddInformationOnForm( !InformClashesFirst , !InformClashesSecond , !ClashesPositionAr , !ClashesTypeAr , $!NumberClashes , $!NumberTouches )
+
+	 IF ( '$!InformClashesFirst[1]' EQ 'CLASHNOTFOUND' ) THEN 
+		 !FileWriteElem[1] = ' '
+	     !FileWriteElem[2] = ' '
+	 RETURN !FileWriteElem	 
+	 ENDIF
+
+	 !MarkTypeCheck = !This.TypeClashList.Selection('DText')
+
+IF ( ( '$!InformClashesFirst[1]' NEQ 'false' ) AND ( '$!MarkTypeCheck'  EQ 'АКТУАЛЬНЫЕ' ) ) THEN
+	 !ArrSize1 = $!NumberClashes * 2
+	 !ArrSize2 = ( $!NumberClashes + $!NumberTouches ) * 2
+ 	 !ArrSize3 = ( $!NumberClashes + $!NumberTouches + $!NumberClearence ) * 2
+	 !ArrSize4 = ( $!NumberClashes + $!NumberTouches + $!NumberClearence + $!NumberNotproven ) * 2
+	 !ArrSize5 = $!NumberClash
+	 -- ¬џ¬ќƒ »Ќ‘ќ–ћј÷»» ќ ѕ≈–≈—≈„≈Ќ»я’
+	 IF ( $!NumberClashes NEQ 0 ) THEN
+		 DO !num from 1 to $!ArrSize1
+			 IF ( ( ( $!num / 2 ) - INT ( $!num / 2 ) ) NEQ 0 ) THEN
+				 !numFirst = ( $!num + 1 ) / 2
+				 !Row$!num[1] = |$!numFirst| & | |
+				 !Row$!num[2] = |$!InformClashesFirst[1][$!numFirst]|
+				 !Row$!num[3] = |$!InformClashesFirst[2][$!numFirst]|
+				 !Row$!num[4] = |$!InformClashesFirst[3][$!numFirst]|
+				 !Row$!num[5] = |$!InformClashesFirst[4][$!numFirst]|
+				 !Row$!num[6] = |$!InformClashesFirst[5][$!numFirst]|
+				 !Row$!num[7] = |$!ClashesPosition[$!numFirst]|
+
+			 IF ( '$!ClashesType[$!numFirst]' EQ 'HH' ) THEN
+				 !ClashesTypeRus = 'жесткое/жесткое'
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'HS' ) THEN
+				 !ClashesTypeRus = 'жесткое/мягкое'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'HI' ) THEN
+				 !ClashesTypeRus = 'жесткое/изоляция'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'SS' ) THEN
+				 !ClashesTypeRus = 'мягкое/мягкое'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'SH' ) THEN
+				 !ClashesTypeRus = 'мягкое/мягкое'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'SI' ) THEN
+				 !ClashesTypeRus = 'мягкое/изоляция'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'II' ) THEN
+				 !ClashesTypeRus = 'изоляция/изоляция'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'IH' ) THEN
+				 !ClashesTypeRus = 'изоляция/жесткое'				 
+ 			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'IS' ) THEN
+				 !ClashesTypeRus = 'изоляция/мягкое'				 
+			 ENDIF
+				 !Row$!num[8] = |$!ClashesTypeRus|
+
+				 --!Row$!num[7] = '$!MyUser'
+				 --!Row$!num[5] = '$!ClashesType[$!numFirst]'
+				 $(!Row$!num[7] = '$!InformClashesFirst[4][$!numFirst]'
+				 !Row$!num[8] = '$!InformClashesFirst[5][$!numFirst]'
+				 !Row$!num[9] = '$!InformClashesFirst[6][$!numFirst]'$)
+				 -- формирование переменной дл¤ записи в файл
+				 !FileWriteFirstElem[$!numFirst] = |$!numFirst| &| /| & |;| & |$!InformClashesFirst[1][$!numFirst]| & |;| & |$!InformClashesFirst[2][$!numFirst]| & |;| & |$!InformClashesFirst[3][$!numFirst]| & |;| & |$!InformClashesFirst[4][$!numFirst]|  & |;| & |$!InformClashesFirst[5][$!numFirst]| & |;| & |$!ClashesPosition[$!numFirst]| & |;| & |$!ClashesTypeRus|
+--				 & ';' & '$!InformClashesFirst[4][$!numFirst]' & ';' & '$!InformClashesFirst[5][$!numFirst]' & ';' & '$!InformClashesFirst[6][$!numFirst]'& ';' & '$!ClashesPosition[$!numFirst]' & ';' & '$!ClashesType[$!numFirst]'
+			 ELSEIF ( ( ( $!num / 2 ) - INT ( $!num / 2 ) ) EQ 0 ) THEN
+				 !numSecond = $!num / 2
+				 !Row$!num[1] = |пересечение|
+				 !Row$!num[2] = |$!InformClashesSecond[1][$!numSecond]|
+				 !Row$!num[3] = |$!InformClashesSecond[2][$!numSecond]|
+				 !Row$!num[4] = |$!InformClashesSecond[3][$!numSecond]|	
+				 !Row$!num[5] = |$!InformClashesSecond[4][$!numSecond]|
+				 !Row$!num[6] = |$!InformClashesSecond[5][$!numSecond]|	
+				 $(!Row$!num[7] = '$!InformClashesSecond[4][$!numSecond]'
+				 !Row$!num[8] = '$!InformClashesSecond[5][$!numSecond]'
+				 !Row$!num[9] = '$!InformClashesSecond[6][$!numSecond]'$)
+				 -- формирование переменной дл¤ записи в файл
+				 !FileWriteSecondElem[$!numSecond] = |пересечение| & |;| & |$!InformClashesSecond[1][$!numSecond]| & |;| & |$!InformClashesSecond[2][$!numSecond]| & |;| & |$!InformClashesSecond[3][$!numSecond]| & |;| & |$!InformClashesSecond[4][$!numSecond]|  & |;| & |$!InformClashesSecond[5][$!numSecond]|
+--				 & ';' & ' ' & ';' & ' ' & ';' & '$!InformClashesSecond[4][$!numSecond]' & ';' & '$!InformClashesSecond[5][$!numSecond]' & ';' & '$!InformClashesSecond[6][$!numSecond]'
+			 ENDIF
+		 ENDDO
+	 ENDIF
+	 -- ¬џ¬ќƒ »Ќ‘ќ–ћј÷»» ќ  ј—јЌ»я’
+	 IF ( $!NumberTouches NEQ 0 ) THEN
+		 DO !num from ( $!ArrSize1 + 1 ) to $!ArrSize2
+			 IF ( ( ( $!num / 2 ) - INT ( $!num / 2 ) ) NEQ 0 ) THEN
+				 !numFirst = ( $!num + 1 ) / 2
+				 !Row$!num[1] = |$!numFirst| & | |
+				 !Row$!num[2] = |$!InformClashesFirst[1][$!numFirst]|
+				 !Row$!num[3] = |$!InformClashesFirst[2][$!numFirst]|
+				 !Row$!num[4] = |$!InformClashesFirst[3][$!numFirst]|
+				 !Row$!num[5] = |$!InformClashesFirst[4][$!numFirst]|
+				 !Row$!num[6] = |$!InformClashesFirst[5][$!numFirst]|
+				 !Row$!num[7] = |$!ClashesPosition[$!numFirst]|
+
+  			 IF ( '$!ClashesType[$!numFirst]' EQ 'HH' ) THEN
+				 !ClashesTypeRus = 'жесткое/жесткое'
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'HS' ) THEN
+				 !ClashesTypeRus = 'жесткое/мягкое'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'HI' ) THEN
+				 !ClashesTypeRus = 'жесткое/изоляция'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'SS' ) THEN
+				 !ClashesTypeRus = 'мягкое/мягкое'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'SH' ) THEN
+				 !ClashesTypeRus = 'мягкое/мягкое'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'SI' ) THEN
+				 !ClashesTypeRus = 'мягкое/изоляция'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'II' ) THEN
+				 !ClashesTypeRus = 'изоляция/изоляция'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'IH' ) THEN
+				 !ClashesTypeRus = 'изоляция/жесткое'				 
+ 			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'IS' ) THEN
+				 !ClashesTypeRus = 'изоляция/мягкое'				 
+			 ENDIF		
+				 !Row$!num[8] = '$!ClashesTypeRus'
+
+ 				 -- !Row$!num[7] = '$!MyUser'
+				 --!Row$!num[5] = '$!ClashesType[$!numFirst]'
+				 $(!Row$!num[7] = '$!InformClashesFirst[4][$!numFirst]'
+				 !Row$!num[8] = '$!InformClashesFirst[5][$!numFirst]'
+				 !Row$!num[9] = '$!InformClashesFirst[6][$!numFirst]'$)
+				 -- формирование переменной дл¤ записи в файл
+				 !FileWriteFirstElem[$!numFirst] = |$!numFirst| &| /| & |;| & |$!InformClashesFirst[1][$!numFirst]| & |;| & |$!InformClashesFirst[2][$!numFirst]| & |;| & |$!InformClashesFirst[3][$!numFirst]| & |;| & |$!InformClashesFirst[4][$!numFirst]|  & |;| & |$!InformClashesFirst[5][$!numFirst]| & |;| & |$!ClashesPosition[$!numFirst]| & |;| & |$!ClashesTypeRus|
+--				 & ';' & '$!InformClashesFirst[4][$!numFirst]' & ';' & '$!InformClashesFirst[5][$!numFirst]' & ';' & '$!InformClashesFirst[6][$!numFirst]'& ';' & '$!ClashesPosition[$!numFirst]' & ';' & '$!ClashesType[$!numFirst]'
+			 ELSEIF ( ( ( $!num / 2 ) - INT ( $!num / 2 ) ) EQ 0 ) THEN
+				 !numSecond = $!num / 2
+				 !Row$!num[1] = |касание|
+				 !Row$!num[2] = |$!InformClashesSecond[1][$!numSecond]|
+				 !Row$!num[3] = |$!InformClashesSecond[2][$!numSecond]|
+				 !Row$!num[4] = |$!InformClashesSecond[3][$!numSecond]|	
+				 !Row$!num[5] = |$!InformClashesSecond[4][$!numSecond]|
+				 !Row$!num[6] = |$!InformClashesSecond[5][$!numSecond]|	
+				 $(!Row$!num[7] = '$!InformClashesSecond[4][$!numSecond]'
+				 !Row$!num[8] = '$!InformClashesSecond[5][$!numSecond]'
+				 !Row$!num[9] = '$!InformClashesSecond[6][$!numSecond]'$)
+				 -- формирование переменной дл¤ записи в файл
+				 !FileWriteSecondElem[$!numSecond] = |касание| & |;| & |$!InformClashesSecond[1][$!numSecond]| & |;| & |$!InformClashesSecond[2][$!numSecond]| & |;| & |$!InformClashesSecond[3][$!numSecond]| & |;| & |$!InformClashesSecond[4][$!numSecond]|  & |;| & |$!InformClashesSecond[5][$!numSecond]|
+--				 & ';' & ' ' & ';' & ' ' & ';' & '$!InformClashesSecond[4][$!numSecond]' & ';' & '$!InformClashesSecond[5][$!numSecond]' & ';' & '$!InformClashesSecond[6][$!numSecond]'
+			 ENDIF
+		 ENDDO
+	 ENDIF
+	 -- ¬џ¬ќƒ »Ќ‘ќ–ћј÷»» ќ «ј«ќ–ј’
+ 	 IF ( $!NumberClearence NEQ 0 ) THEN
+		 DO !num from ( $!ArrSize2 + 1 ) to $!ArrSize3
+			 IF ( ( ( $!num / 2 ) - INT ( $!num / 2 ) ) NEQ 0 ) THEN
+				 !numFirst = ( $!num + 1 ) / 2
+				 !Row$!num[1] = |$!numFirst| & | |
+				 !Row$!num[2] = |$!InformClashesFirst[1][$!numFirst]|
+				 !Row$!num[3] = |$!InformClashesFirst[2][$!numFirst]|
+				 !Row$!num[4] = |$!InformClashesFirst[3][$!numFirst]|
+				 !Row$!num[5] = |$!InformClashesFirst[4][$!numFirst]|
+				 !Row$!num[6] = |$!InformClashesFirst[5][$!numFirst]|
+				 !Row$!num[7] = |$!ClashesPosition[$!numFirst]|
+
+ 			 IF ( '$!ClashesType[$!numFirst]' EQ 'HH' ) THEN
+				 !ClashesTypeRus = 'жесткое/жесткое'
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'HS' ) THEN
+				 !ClashesTypeRus = 'жесткое/мягкое'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'HI' ) THEN
+				 !ClashesTypeRus = 'жесткое/изоляция'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'SS' ) THEN
+				 !ClashesTypeRus = 'мягкое/мягкое'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'SH' ) THEN
+				 !ClashesTypeRus = 'мягкое/мягкое'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'SI' ) THEN
+				 !ClashesTypeRus = 'мягкое/изоляция'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'II' ) THEN
+				 !ClashesTypeRus = 'изоляция/изоляция'				 
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'IH' ) THEN
+				 !ClashesTypeRus = 'изоляция/жесткое'				 
+ 			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'IS' ) THEN
+				 !ClashesTypeRus = 'изоляция/мягкое'				 
+			 ENDIF		
+				 !Row$!num[8] = '$!ClashesTypeRus'
+
+  				 --!Row$!num[7] = '$!MyUser'
+				 --!Row$!num[5] = '$!ClashesType[$!numFirst]'
+				 $(!Row$!num[7] = '$!InformClashesFirst[4][$!numFirst]'
+				 !Row$!num[8] = '$!InformClashesFirst[5][$!numFirst]'
+				 !Row$!num[9] = '$!InformClashesFirst[6][$!numFirst]'$)
+
+				 -- формирование переменной дл¤ записи в файл
+				 !FileWriteFirstElem[$!numFirst] = |$!numFirst| &| /| & |;| & |$!InformClashesFirst[1][$!numFirst]| & |;| & |$!InformClashesFirst[2][$!numFirst]| & |;| & |$!InformClashesFirst[3][$!numFirst]| & |;| & |$!InformClashesFirst[4][$!numFirst]|  & |;| & |$!InformClashesFirst[5][$!numFirst]| & |;| & |$!ClashesPosition[$!numFirst]| & |;| & |$!ClashesTypeRus|
+--				 & ';' & '$!InformClashesFirst[4][$!numFirst]' & ';' & '$!InformClashesFirst[5][$!numFirst]' & ';' & '$!InformClashesFirst[6][$!numFirst]' & ';' & '$!ClashesPosition[$!numFirst]' & ';' & '$!ClashesType[$!numFirst]'
+			 ELSEIF ( ( ( $!num / 2 ) - INT ( $!num / 2 ) ) EQ 0 ) THEN
+				 !numSecond = $!num / 2
+				 !Row$!num[1] = |зазор|
+				 !Row$!num[2] = |$!InformClashesSecond[1][$!numSecond]|
+				 !Row$!num[3] = |$!InformClashesSecond[2][$!numSecond]|
+				 !Row$!num[4] = |$!InformClashesSecond[3][$!numSecond]|	
+				 !Row$!num[5] = |$!InformClashesSecond[4][$!numSecond]|
+				 !Row$!num[6] = |$!InformClashesSecond[5][$!numSecond]|	
+				 $(!Row$!num[7] = '$!InformClashesSecond[4][$!numSecond]'
+				 !Row$!num[8] = '$!InformClashesSecond[5][$!numSecond]'
+				 !Row$!num[9] = '$!InformClashesSecond[6][$!numSecond]'$)
+				 -- формирование переменной дл¤ записи в файл
+				 !FileWriteSecondElem[$!numSecond] = |зазор| & |;| & |$!InformClashesSecond[1][$!numSecond]| & |;| & |$!InformClashesSecond[2][$!numSecond]| & |;| & |$!InformClashesSecond[3][$!numSecond]| & |;| & |$!InformClashesSecond[4][$!numSecond]|  & |;| & |$!InformClashesSecond[5][$!numSecond]|
+--				 & ';' & ' ' & ';' & ' ' & ';' & '$!InformClashesSecond[4][$!numSecond]' & ';' & '$!InformClashesSecond[5][$!numSecond]' & ';' & '$!InformClashesSecond[6][$!numSecond]'
+			 ENDIF
+		 ENDDO
+	 ENDIF
+ 	 IF ( $!NumberNotproven NEQ 0 ) THEN
+		 DO !num from ( $!ArrSize3 + 1 ) to $!ArrSize4
+			 IF ( ( ( $!num / 2 ) - INT ( $!num / 2 ) ) NEQ 0 ) THEN
+				 !numFirst = ( $!num + 1 ) / 2
+				 !Row$!num[1] = |$!numFirst| & | |
+				 !Row$!num[2] = |$!InformClashesFirst[1][$!numFirst]|
+				 !Row$!num[3] = |$!InformClashesFirst[2][$!numFirst]|
+				 !Row$!num[4] = |$!InformClashesFirst[3][$!numFirst]|
+				 !Row$!num[5] = |$!InformClashesFirst[4][$!numFirst]|
+				 !Row$!num[6] = |$!InformClashesFirst[5][$!numFirst]|
+				 !Row$!num[7] = |$!ClashesPosition[$!numFirst]|
+
+  			 IF ( '$!ClashesType[$!numFirst]' EQ 'HH' ) THEN
+				 !ClashesTypeRus = 'жесткое/жесткое'
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'HS' ) THEN
+				 !ClashesTypeRus = 'жесткое/мягкое'
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'HI' ) THEN
+				 !ClashesTypeRus = 'жесткое/изоляция'
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'SS' ) THEN
+				 !ClashesTypeRus = 'мягкое/мягкое'
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'SH' ) THEN
+				 !ClashesTypeRus = 'мягкое/мягкое'
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'SI' ) THEN
+				 !ClashesTypeRus = 'мягкое/изоляция'
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'II' ) THEN
+				 !ClashesTypeRus = 'изоляция/изоляция'
+			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'IH' ) THEN
+				 !ClashesTypeRus = 'изоляция/жесткое'
+ 			 ELSEIF ( '$!ClashesType[$!numFirst]' EQ 'IS' ) THEN
+				 !ClashesTypeRus = 'изоляция/мягкое'
+			 ENDIF
+				 !Row$!num[8] = '$!ClashesTypeRus'
+
+   				 -- !Row$!num[7] = '$!MyUser'
+				 --!Row$!num[5] = '$!ClashesType[$!numFirst]'
+				 $(!Row$!num[7] = '$!InformClashesFirst[4][$!numFirst]'
+				 !Row$!num[8] = '$!InformClashesFirst[5][$!numFirst]'
+				 !Row$!num[9] = '$!InformClashesFirst[6][$!numFirst]'$)
+				 -- формирование переменной дл¤ записи в файл
+				 !FileWriteFirstElem[$!numFirst] = |$!numFirst| &| /| & |;| & |$!InformClashesFirst[1][$!numFirst]| & |;| & |$!InformClashesFirst[2][$!numFirst]| & |;| & |$!InformClashesFirst[3][$!numFirst]| & |;| & |$!InformClashesFirst[4][$!numFirst]|  & |;| & |$!InformClashesFirst[5][$!numFirst]| & |;| & |$!ClashesPosition[$!numFirst]| & |;| & |$!ClashesTypeRus|
+--				 & ';' & '$!InformClashesFirst[4][$!numFirst]' & ';' & '$!InformClashesFirst[5][$!numFirst]' & ';' & '$!InformClashesFirst[6][$!numFirst]' & ';' & '$!ClashesPosition[$!numFirst]' & ';' & '$!ClashesType[$!numFirst]'
+			 ELSEIF ( ( ( $!num / 2 ) - INT ( $!num / 2 ) ) EQ 0 ) THEN
+				 !numSecond = $!num / 2
+				 !Row$!num[1] = |недоказанная|
+				 !Row$!num[2] = |$!InformClashesSecond[1][$!numSecond]|
+				 !Row$!num[3] = |$!InformClashesSecond[2][$!numSecond]|
+				 !Row$!num[4] = |$!InformClashesSecond[3][$!numSecond]|	
+				 !Row$!num[5] = |$!InformClashesSecond[4][$!numSecond]|
+				 !Row$!num[6] = |$!InformClashesSecond[5][$!numSecond]|	
+				 $(!Row$!num[7] = '$!InformClashesSecond[4][$!numSecond]'
+				 !Row$!num[8] = '$!InformClashesSecond[5][$!numSecond]'
+				 !Row$!num[9] = '$!InformClashesSecond[6][$!numSecond]'$)
+				 -- формирование переменной дл¤ записи в файл
+				 !FileWriteSecondElem[$!numSecond] = |недоказанная| & |;| & |$!InformClashesSecond[1][$!numSecond]| & |;| & |$!InformClashesSecond[2][$!numSecond]| & |;| & |$!InformClashesSecond[3][$!numSecond]| & |;| & |$!InformClashesSecond[4][$!numSecond]|  & |;| & |$!InformClashesSecond[5][$!numSecond]|
+--				 & ';' & ' ' & ';' & ' ' & ';' & '$!InformClashesSecond[4][$!numSecond]' & ';' & '$!InformClashesSecond[5][$!numSecond]' & ';' & '$!InformClashesSecond[6][$!numSecond]'
+			 ENDIF
+		 ENDDO
+	 ENDIF
+     DO !iDtext from 1 to $!ArrSize4
+	 !dtext[!iDtext] = !Row$!iDtext
+     ENDDO
+     !this.CollisionList.setRows( !dtext )
+     DO !iTable from 1 to !dtext.size()
+		 !rtext[!iTable] = 'row $!iTable'
+     ENDDO
+     !this.CollisionList.rtext = !rtext
+	 HANDLE ANY $*
+		 RETURN
+	 ENDHANDLE
+	 ENDIF
+	 IF ( '$!MarkTypeCheck' EQ 'ПЕРВИЧНЫЕ' ) THEN
+		 !MyFile = object FILE ('C:\Kol\ClashPrimaryON.txt')
+			 !MyFile.Open('READ')
+			 !Result = ARRAY ()
+			 !x = 0
+			 DO
+ 				 !Line = !MyFile.ReadRecord()
+				 IF (!Line.set()) THEN
+					 !MyLinearray = !Line.Split()
+					 !Mark = 'YES'
+					 !MyType =  REAL('$!MyLinearray[1]')
+					 HANDLE (2,441) (2,752)
+						 !Mark = 'NO'
+					 ENDHANDLE
+					 HANDLE (46,28)
+					 ENDHANDLE
+				 ELSE
+					 BREAK
+				 ENDIF
+				 IF ( $!Mark EQ YES ) THEN
+					 !x = $!x + 1			 
+					 !Result[$!x] = $!MyLinearray[1]
+				 ENDIF
+			 ENDDO
+			 !MyFile.Close()
+			 -- ”ƒјЋя≈ћ ѕќ—Ћ≈ƒЌ»≈ ЁЋ≈ћ≈Ќ“џ ћј——»¬ј Result, ¬  ќ“ќ–џ’ ’–јЌ»“—я »Ќ‘ќ–ћј÷»я ќ  ќЋ»„≈—“¬≈  ќЋЋ»«»… PRIMARY » ACTUAL
+			 !NumberActual = !this.ReadActualPrimaryClash('***ACTUAL' , 'COUNTELEM')
+			 !NumberPrimary = !this.ReadActualPrimaryClash('***PRIMARY' , 'COUNTELEM')
+			 -- $p act $!NumberActual pr $!NumberPrimary
+			 !NumberDeleteElem = $!NumberActual + $!NumberPrimary
+			 -- $p $!NumberDeleteElem
+			 -- idel = 0
+			 DO  !in from 0 to $!NumberDeleteElem - 1
+				!Result[$!x - $!in].delete()
+			 ENDDO
+			 !NumberResult = ( $!x - $!NumberDeleteElem ) * 2
+
+			 DO !num FROM 1 TO $!NumberResult
+				 IF ( ( ( $!num / 2 ) - INT ( $!num / 2 ) ) NEQ 0 ) THEN
+					 !MyNumUnEven = ( $!num / 2 )
+					 !IndexUnEven = !MyNumUnEven.String(|D0|)
+					 !Row$!num[1] = |$!Result[$!IndexUnEven]| & | |
+			 		 !Row$!num[2] = |$!InformClashesFirst[1][$!IndexUnEven]|
+					 !Row$!num[3] = |$!InformClashesFirst[2][$!IndexUnEven]|
+					 !Row$!num[4] = |$!InformClashesFirst[3][$!IndexUnEven]|
+					 !Row$!num[5] = |$!InformClashesFirst[4][$!IndexUnEven]|
+					 !Row$!num[6] = |$!InformClashesFirst[5][$!IndexUnEven]|
+					 !Row$!num[7] = |$!ClashesPosition[$!IndexUnEven]|
+
+   			 IF ( '$!ClashesType[$!IndexUnEven]' EQ 'HH' ) THEN
+				 !ClashesTypeRus = 'жесткое/жесткое'
+			 ELSEIF ( '$!ClashesType[$!IndexUnEven]' EQ 'HS' ) THEN
+				 !ClashesTypeRus = 'жесткое/мягкое'				 
+			 ELSEIF ( '$!ClashesType[$!IndexUnEven]' EQ 'HI' ) THEN
+				 !ClashesTypeRus = 'жесткое/изоляция'				 
+			 ELSEIF ( '$!ClashesType[$!IndexUnEven]' EQ 'SS' ) THEN
+				 !ClashesTypeRus = 'мягкое/мягкое'				 
+			 ELSEIF ( '$!ClashesType[$!IndexUnEven]' EQ 'SH' ) THEN
+				 !ClashesTypeRus = 'мягкое/мягкое'				 
+			 ELSEIF ( '$!ClashesType[$!IndexUnEven]' EQ 'SI' ) THEN
+				 !ClashesTypeRus = 'мягкое/изоляция'				 
+			 ELSEIF ( '$!ClashesType[$!IndexUnEven]' EQ 'II' ) THEN
+				 !ClashesTypeRus = 'изоляция/изоляция'				 
+			 ELSEIF ( '$!ClashesType[$!IndexUnEven]' EQ 'IH' ) THEN
+				 !ClashesTypeRus = 'изоляция/жесткое'
+ 			 ELSEIF ( '$!ClashesType[$!IndexUnEven]' EQ 'IS' ) THEN
+				 !ClashesTypeRus = 'изоляция/мягкое'				 
+			 ENDIF
+					 !Row$!num[8] = |$!ClashesTypeRus|
+
+					 !FileWriteFirstElem[$!IndexUnEven] = |$!IndexUnEven| &| /| & |;| & |$!InformClashesFirst[1][$!IndexUnEven]| & |;| & |$!InformClashesFirst[2][$!IndexUnEven]| & |;| & |$!InformClashesFirst[3][$!IndexUnEven]| & |;| & |$!InformClashesFirst[4][$!IndexUnEven]|  & |;| & |$!InformClashesFirst[5][$!IndexUnEven]| & |;| & |$!ClashesPosition[$!IndexUnEven]| & |;| & |$!ClashesTypeRus|
+
+				 ELSEIF ( ( ( $!num / 2 ) - INT ( $!num / 2 ) ) EQ 0 ) THEN
+ 					 !IndexEven = ( $!num / 2 )
+
+					 !Row$!num[1] = 'первичная'
+					 !Row$!num[2] = '$!InformClashesSecond[1][$!IndexEven]'
+					 !Row$!num[3] = '$!InformClashesSecond[2][$!IndexEven]'
+					 !Row$!num[4] = '$!InformClashesSecond[3][$!IndexEven]'	
+					 !Row$!num[5] = '$!InformClashesSecond[4][$!IndexEven]'
+					 !Row$!num[6] = '$!InformClashesSecond[5][$!IndexEven]'
+					 !FileWriteSecondElem[$!IndexEven] = |первичная| & |;| & |$!InformClashesSecond[1][$!IndexEven]| & |;| & |$!InformClashesSecond[2][$!IndexEven]| & |;| & |$!InformClashesSecond[3][$!IndexEven]| & |;| & |$!InformClashesSecond[4][$!IndexEven]|  & |;| & |$!InformClashesSecond[5][$!IndexEven]|
+				 ENDIF
+			 ENDDO
+
+		 DO !iDtext from 1 to $!NumberResult
+		 !dtext[!iDtext] = !Row$!iDtext
+		 ENDDO
+		 !this.CollisionList.setRows( !dtext )
+ 		 DO !iTable from 1 to !dtext.size() 
+		 !rtext[!iTable] = 'row $!iTable'
+		 ENDDO
+		 !this.CollisionList.rtext = !rtext
+		 HANDLE ANY $*
+			 RETURN
+		 ENDHANDLE
+	 ENDIF
+		 --$p $!FileWriteFirstElem[1]
+		 --$p $!FileWriteSecondElem[1]
+
+ 	   !FileWriteElem[1] = !FileWriteFirstElem
+	   !FileWriteElem[2] = !FileWriteSecondElem
+
+	 RETURN !FileWriteElem
+Endmethod
+------------------------------------------------------------------------
+-- Method:		ReadActualPrimatyClash
+-- Description:	считывание количества всех коллизий
+-- Method Type:	
+-- Arguments:	
+-- Return:		
+------------------------------------------------------------------------
+Define method .ReadActualPrimaryClash ( !MarkOfMethod is STRING , !MarkOfReturn is STRING ) is REAL
+			 !MyFile = object FILE ('C:\Kol\ClashPrimaryON.txt')
+			 !MyFile.Open('READ')
+			 !y = 0
+		 DO
+			 	 !MyLine = !MyFile.ReadRecord()
+				 -- $p $!MyLine
+				 !MarkType = 'TRUE'
+				 !MarkOfMethodLin = 'ACTPR'
+				 IF ( !MyLine.set()) THEN
+					 !MyLinearray = !MyLine.Split()
+							 HANDLE ANY
+								 -- BREAK
+					 		 ENDHANDLE
+							 !MarkOfMethodLin = '$!MyLinearray[1]'
+							 HANDLE ANY
+								 !MarkType = 'FALSE'
+					 		 ENDHANDLE	
+							 -- $p MarkOfMethodLin $!MarkOfMethodLin
+				     IF  ( ( $!MarkType EQ TRUE ) AND ( '$!MarkOfMethodLin' EQ '$!MarkOfMethod' ) ) THEN
+							 -- $p получилось
+								 !MyActualResult = 0
+								 DO 							 
+								 !y = $!y + 1
+									 !MyLine = !MyFile.ReadRecord()
+									 IF ( !MyLine.set()) THEN
+										 !MyLinearray = !MyLine.Split()
+										 !MyActualClash[$!y] =  REAL ( '$!MyLinearray[1]' )
+										 HANDLE ANY
+											 BREAK
+										 ENDHANDLE
+			 						 ELSE
+										 BREAK
+									 ENDIF
+								 !MyActualResult = $!MyActualResult + $!MyActualClash[$!y]
+								 -- $p y $!y MyActualResult $!MyActualResult							 
+								 ENDDO
+						     ENDIF
+						 ELSE
+						 BREAK
+				 ENDIF
+				 LABEL /L1
+		 ENDDO
+			 !MyFile.Close()
+				 !CountElem = $!y - 1
+			 IF ( '$!MarkOfReturn' EQ 'COUNTELEM' ) THEN
+				 !ResultReturn = $!CountElem
+			 ELSEIF ( '$!MarkOfReturn' EQ 'SUMMACTUAL' ) THEN
+				 !ResultReturn = $!MyActualResult
+			 ENDIF
+			  -- $p количество элементов $!CountElem
+			  -- $p количество элементов $!MyActualResult
+			 RETURN !ResultReturn
+Endmethod
+------------------------------------------------------------------------
+-- Method:		GoToCurrentElement
+-- Description:	переход на текущий элемент
+-- Method Type:	
+-- Arguments:		
+-- Return:			
+------------------------------------------------------------------------
+Define method .GoToCurrentElement()
+	 -- ”даление всех элементов с свидового экрана
+	 REM ALL
+	 -- ѕолучение индексов элементов коллизии в таблице
+	 !NumberClashFirst = !this.CollisionList.Val
+	 !NumberClashSecond = $!NumberClashFirst + 1
+	 -- —читывание данных по коллизии из таблицы
+	 !TextClashFirst = !this.CollisionList.DText[$!NumberClashFirst]
+	 !TextClashSecond = !this.CollisionList.DText[$!NumberClashSecond]
+	 -- ѕолучение RefNo первого и второго элемента коллизии
+	 !ElemClashFirst = PART ( '$!TextClashFirst' , 2 , '' )
+	 	 --$p FirstElem $!ElemClashFirst
+	 !ElemClashSecond = PART ( '$!TextClashSecond' , 2 , '' )
+	 	 --$p SecondElement $!ElemClashSecond
+     -- ¬ыбор цвета дл¤ элементов коллизии (красный цвет)
+	 !enhFirst  = 'ENHANCE $!ElemClashFirst COLOUR 2'
+     !enhSecond = 'ENHANCE $!ElemClashSecond COLOUR 2'
+	 -- ƒобавление на видовой экран элементов коллизии
+	 ADD $!ElemClashFirst
+	 $!enhFirst
+	 --MARK WITH 'First elem.' $!ElemClashFirst
+	 ADD $!ElemClashSecond
+		 -- ќбработка ошибки выбора второго элемента в списке коллизий
+		 HANDLE (2,113)
+			 !!Alert.Error ( 'Некорректно выбран элемент для перехода к коллизии!' )
+			 RETURN
+		 ENDHANDLE
+	 $!enhSecond
+	 --MARK WITH 'Second elem.' $!ElemClashSecond 	 
+	 --ƒобавление ситуации вокруг места коллизии в объеме метра
+	 ADD ALL WITHIN VOL $!ElemClashFirst 1000
+	 !lim = object gphviews()
+	 !lim.limits(!!gph3DDesign1.view,!ElemClashFirst.Dbref()) 
+
+Endmethod
+------------------------------------------------------------------------
+-- Method:		GetReport
+-- Description:	получение отчета о коллизи¤х ClashReport.csv
+-- Method Type:
+-- Arguments:	
+-- Return:		
+------------------------------------------------------------------------
+Define method .GetReport( )
+
+		 !StationName = !This.NameStation.Selection('DText')
+	     !BuildName = !This.NameBuild.Selection('DText')
+	     !SystemName = !This.NameSystem.Selection('DText')
+
+	 !FileWriteFirstElem = !!FileWriteElem[1]
+	 !FileWriteSecondElem = !!FileWriteElem[2]
+	 !NumberClash = !FileWriteFirstElem.Size()
+	 HANDLE (2,779) 
+		 !NumberClash = 1
+		 !FileWriteFirstElem = ' '
+		 !FileWriteSecondElem = ' '
+	 ENDHANDLE
+	 -- ‘ормирование имени файла ClashReport
+		 -- !MyUser = SESSUSER
+		 !today = object DATETIME()
+		 !year = !today.year()
+		 !month = !today.month()
+		 !day = !today.date()
+		 !hour = !today.hour()
+		 !minute = !today.minute()
+		 --!second = !today.second()
+		 !FileReport  = 'C:\Kol\' & 'REPORT' & '.csv'
+		 !FileClash  = 'C:\Kol\' & 'CLASH' & '.csv'
+	 -- ‘ормирование файла ClashReport
+	 !ReportFileCsv = object FILE ( '$!FileReport' )
+	 !ClashFileCsv = object FILE ( '$!FileClash' )
+
+	 !ReportFileCsv.Open('OVERWRITE')
+ 	 !ClashFileCsv.Open('OVERWRITE')
+		 -- ѕровер¤емый элемент
+		 !HeaderLine0 = 'Проект' & ';' & '$!StationName' & ';' & 'Здание (сооружение)' & ';' & '$!BuildName'  & ';' &  'Система'  & ';' & '$!SystemName'
+		 !HeaderLine01 = '$!day' & ';' & '$!month' & ';' & '$!year' & ';' & '$!hour'  & ';' & '$!minute'
+		 !ReportFileCsv.WriteRecord  ( '$!HeaderLine0' )
+		 !ReportFileCsv.WriteRecord  ( '$!HeaderLine01' )		 
+
+		 --ВЫВОД ПРОВЕРЯЕМЫХ ЭЛЕМЕНТОВ
+	     !SizeCheck = !!DescCheckElem.Size()
+		 !HeaderLine1 = 'Проверяемые элементы:'
+		 !ReportFileCsv.WriteRecord  ( '$!HeaderLine1' )
+		 DO !numCheck FROM 1 TO 5
+				 !ReportFileCsv.WriteRecord  ( '$!!CheckElem[$!numCheck]' & ';' & '$!!DescCheckElem[$!numCheck]' )		 
+			 HANDLE (2,752)
+				 !ReportFileCsv.WriteRecord  (' ')
+			 ENDHANDLE
+		 ENDDO
+
+		 -- ВЫВОД РАССМАТРИВАЕМЫХ ЭЛЕМЕНТОВ
+		 !SizeObst = !!DescObstElem.Size()
+		 !HeaderLine2 = 'Рассматриваемые элементы:'
+		 !ReportFileCsv.WriteRecord  ( '$!HeaderLine2' )
+ 		 DO !numObst FROM 1 TO 20
+				 !ReportFileCsv.WriteRecord  ( '$!!ObstElem[$!numObst]' & ';' & '$!!DescObstElem[$!numObst]' )
+ 			 HANDLE (2,752)
+				 !ReportFileCsv.WriteRecord  (' ')
+			 ENDHANDLE
+		 ENDDO
+
+		 --ВЫВОД ИСКЛЮЧАЕМЫХ ЭЛЕМЕНТОВ
+		 !SizeExcl = !!DescExclElem.Size()
+		 HANDLE (2,751)
+			!SizeExcl = 0
+		 ENDHANDLE
+
+		 !HeaderLine3 = 'Исключаемые элементы:'
+ 		 !ReportFileCsv.WriteRecord  ( '$!HeaderLine3' )
+ 		 DO !numExcl FROM 1 TO 3
+				 !ReportFileCsv.WriteRecord  ( '$!!ExclElem[$!numExcl]' & ';' & '$!!DescExclElem[$!numExcl]' )
+  			 HANDLE (2,752)
+				 !ReportFileCsv.WriteRecord  (' ')
+			 ENDHANDLE
+		 ENDDO
+
+		 --!This.TypeClashList.Callback = |!ChGost = !This.TypeClashList.Selection('DText')|
+		 !TypeClash = !This.TypeClashList.Selection('DText')
+		 --$p $!TypeClash
+
+		 -- Настройка проверки на коллизии
+		 !HeaderLine4 = 'Настройки проверки на коллизии:'
+		 !HeaderLine04 = 'Тип коллизий' & ';' & '$!TypeClash'
+		 !HeaderLine5 = 'Соприкосновение' & ';' & '$!!ClashesTouchGap' & ';' & 'мм'
+		 !HeaderLine6 = 'Перекрытие' & ';' & '$!!ClashesTouchOver' & ';' & 'мм'
+		 !HeaderLine7 = 'Зазор' & ';' & '$!!ClashesClearance' & ';' & 'мм'		 
+		 !HeaderLine8 = 'Тип проверки' & ';' & '$!!ClashesOption '
+		 !HeaderLine9 = 'Игнорируемые элементы' & ';' & '$!!ClashesIgnore'
+ 		 !HeaderLine10 = 'Ограничения' & ';' & '$!!ClashesLimits'
+		 -- Ќайденные коллизии
+ 		 -- !HeaderLine11 = 'Найденные коллизии:'
+		 --;' & 'ѕользователь' & ';' & 'ќтдел' & ';' & 'ƒата'  
+		 !ReportFileCsv.WriteRecord  ( '$!HeaderLine4' )
+		 !ReportFileCsv.WriteRecord  ( '$!HeaderLine04' )
+		 !ReportFileCsv.WriteRecord  ( '$!HeaderLine5' )
+		 !ReportFileCsv.WriteRecord  ( '$!HeaderLine6' )
+		 !ReportFileCsv.WriteRecord  ( '$!HeaderLine7' )
+		 !ReportFileCsv.WriteRecord  ( '$!HeaderLine8' )
+		 !ReportFileCsv.WriteRecord  ( '$!HeaderLine9' ) 
+		 !ReportFileCsv.WriteRecord  ( '$!HeaderLine10' ) 
+		 -- !ClashFileCsv.WriteRecord  ('$!HeaderLine11')
+
+		 !HeaderTable = 'Номер / Тип коллизии' & ';' & 'Элементы' & ';' & 'Тип элемента' & ';' & 'Владелец' & ';' & 'ZONE элемента' & ';' & 'SITE элемента' & ';' & 'Координаты коллизии'  & ';' & 'Степень коллизии'		 
+		 !ClashFileCsv.WriteRecord  ( '$!HeaderTable' )		 
+		 DO !iFile from 1 to $!NumberClash
+			 !ClashFileCsv.WriteRecord  ( |$!FileWriteFirstElem[$!iFile]| )
+			 !ClashFileCsv.WriteRecord  ( |$!FileWriteSecondElem[$!iFile]| )
+		 ENDDO
+
+		 --$P $!NumberClash
+		 --IF ( '$!NumberClash' EQ '0' ) THEN		 
+		 --$P YES TEST
+		 --	 !ClashFileCsv.WriteRecord  ( ' ' )
+		 --	 !ClashFileCsv.WriteRecord  ( ' ' )
+		 --ENDIF
+
+		 -- »тоговый отчет
+		 !EmptyLine = ' '
+		 !CountLineText = ' Количество коллизий:'
+		 !CountLineClashes = '$!!NumberClashesGlob' & ';' & 'пересечение'
+		 !CountLineTouches = '$!!NumberTouchesGlob' & ';' & 'касание'
+		 !CountLineClearence = '$!!NumberClearenceGlob' & ';' & 'зазор'
+ 		 -- !CountLineNotproven = '$!!NumberNotprovenGlon' & ';' & 'недоказанные'
+		 !TotalLineText = 'Итоговый отчет:'
+		 !TotalLine1HH = '$!!AllTotalClash[1]' & ';' & 'ЖЕСТКОЕ/ЖЕСТКОЕ'
+		 !TotalLine2HS = '$!!AllTotalClash[2]' & ';' & 'ЖЕСТКОЕ/МЯГКОЕ' 
+		 !TotalLine3HI = '$!!AllTotalClash[3]' & ';' & 'ЖЕСТКОЕ/ИЗОЛЯЦИЯ'
+ 		 !TotalLine1SS = '$!!AllTotalClash[4]' & ';' & 'МЯГКОЕ/МЯГКОЕ'
+		 !TotalLine2SH = '$!!AllTotalClash[5]' & ';' & 'МЯГКОЕ/ЖЕСТКОЕ' 
+		 !TotalLine3SI = '$!!AllTotalClash[6]' & ';' & 'МЯГКОЕ/ИЗОЛЯЦИЯ'
+ 		 !TotalLine1II = '$!!AllTotalClash[7]' & ';' & 'ИЗОЛЯЦИЯ/ИЗОЛЯЦИЯ'
+		 !TotalLine2IH = '$!!AllTotalClash[8]' & ';' & 'ИЗОЛЯЦИЯ/ЖЕСТКОЕ'
+		 !TotalLine3IS = '$!!AllTotalClash[9]' & ';' & 'ИЗОЛЯЦИЯ/МЯГКОЕ'
+		 !ReportFileCsv.WriteRecord  ( '$!CountLineText' )
+		 !ReportFileCsv.WriteRecord  ( '$!CountLineClashes' )
+		 !ReportFileCsv.WriteRecord  ( '$!CountLineTouches' )
+		 !ReportFileCsv.WriteRecord  ( '$!CountLineClearence' )
+		 --!ReportFileCsv.WriteRecord  ( '$!CountLineNotproven' )
+		 !ReportFileCsv.WriteRecord  ( '$!TotalLineText' )
+ 		 !ReportFileCsv.WriteRecord  ( '$!TotalLine1HH' )		 
+ 		 !ReportFileCsv.WriteRecord  ( '$!TotalLine2HS' )		 
+ 		 !ReportFileCsv.WriteRecord  ( '$!TotalLine3HI' )
+ 		 !ReportFileCsv.WriteRecord  ( '$!TotalLine1SS' )
+ 		 !ReportFileCsv.WriteRecord  ( '$!TotalLine2SH' )
+ 		 !ReportFileCsv.WriteRecord  ( '$!TotalLine3SI' )
+ 		 !ReportFileCsv.WriteRecord  ( '$!TotalLine1II' )
+ 		 !ReportFileCsv.WriteRecord  ( '$!TotalLine2IH' )
+ 		 !ReportFileCsv.WriteRecord  ( '$!TotalLine3IS' )
+
+		 !AllClashes = $!!NumberClashesGlob + $!!NumberTouchesGlob + $!!NumberClearenceGlob
+		 !AllClashesText = 'ОБЩЕЕ КОЛИЧЕСТВО КОЛЛИЗИЙ' & ';' & $!AllClashes 
+		 !ReportFileCsv.WriteRecord  ( '$!AllClashesText' )
+
+		 !ReportFileCsv.Close()
+		 !ClashFileCsv.Close()		 
+Endmethod
+-------------------------------------------------------------------------
+-- Method:		
+-- Description:		
+-- Method Type:	
+-- Arguments:		
+-- Return:			
+-------------------------------------------------------------------------
+Define Method .wvolClash( !w1 is STRING , !w2 is STRING ) is REAL
+		 !x1 = REAL ( PART ( '$!w1' , 1 , ' ' ) )
+		 !y1 = REAL ( PART ( '$!w1' , 2 , ' ' ) )
+		 !z1 = REAL ( PART ( '$!w1' , 3 , ' ' ) )
+		 !x2 = REAL ( PART ( '$!w1' , 4 , ' ' ) )
+		 !y2 = REAL ( PART ( '$!w1' , 5 , ' ' ) )
+		 !z2 = REAL ( PART ( '$!w1' , 6 , ' ' ) )
+		 !x3 = REAL ( PART ( '$!w2' , 1 , ' ' ) )
+		 !y3 = REAL ( PART ( '$!w2' , 2 , ' ' ) )
+		 !z3 = REAL ( PART ( '$!w2' , 3 , ' ' ) )
+		 !x4 = REAL ( PART ( '$!w2' , 4 , ' ' ) )
+		 !y4 = REAL ( PART ( '$!w2' , 5 , ' ' ) )
+		 !z4 = REAL ( PART ( '$!w2' , 6 , ' ' )	)
+		 !retval = 0
+		 IF ( ( !x1 GE !x3 AND !x1 LE !x4) OR ( !x2 GE !x3 AND !x2 LE !x4) OR ( !x3 GE !x1 AND !x3 LE !x2) ) THEN
+			 IF (( !y1 GE !y3 AND !y1 LE !y4) OR ( !y2 GE !y3 AND !y2 LE !y4) OR ( !y3 GE !y1 AND !y3 LE !y2) ) THEN
+				 IF (( !z1 GE !z3 AND !z1 LE !z4) OR ( !z2 GE !z3 AND !z2 LE !z4) OR ( !z3 GE !z1 AND !z3 LE !z2) ) THEN
+					 !retval = 1
+				 ENDIF
+			 ENDIF
+		 ENDIF
+		 -- $p $!retval
+		 RETURN !retval
+Endmethod
+-------------------------------------------------------------------------
+-- Method:
+-- Description:	список зданий и сооружений
+-- Method Type:	
+-- Arguments:	
+-- Return:		
+-------------------------------------------------------------------------
+Define Method .GetNameBuild( ) is STRING
+  	 !NameStationDtext = !This.NameStation.Selection('DText') 
+	 IF ( '$!NameStationDtext' EQ 'Казанская ТЭЦ-3' ) THEN
+		 !NameBuild[1] = ' '
+		 !NameBuild[2] = 'Главный корпус'
+		 !NameBuild[3] = 'ГДКС'
+		 !NameBuild[4] = 'Электротехническое здание'
+		 !NameBuild[5] = 'Внешняя инфраструктура'
+		 !NameBuild[6] = 'Существующий главный корпус'
+	 ELSEIF ( '$!NameStationDtext' EQ 'Полярная ГТЭС' ) THEN
+		 !NameBuild[1] = ' '
+		 !NameBuild[2] = '08001. Главный корпус'
+		 !NameBuild[3] = '08006. Сухая вентиляторная градирня'
+		 !NameBuild[4] = '08007. Копрессорная'
+		 !NameBuild[5] = '08012. АБК'		 
+	 ENDIF
+	 !This.NameBuild.DText = !NameBuild	 
+Endmethod
+-------------------------------------------------------------------------
+-- Method:
+-- Description:	список систем
+-- Method Type:	
+-- Arguments:	
+-- Return:		
+-------------------------------------------------------------------------
+Define Method .GetNameSystem( ) is STRING
+ 	 -- список систем
+   	   	 !NameBuildDtext = !This.NameBuild.Selection('DText')
+	   	 !NameStationDtext1 = !This.NameStation.Selection('DText')
+		 --$p здание $!NameBuildDtext станция $!NameStationDtext1
+	 IF ( ( '$!NameStationDtext1' EQ 'Казанская ТЭЦ-3' ) AND ( '$!NameBuildDtext' EQ 'Главный корпус' ) ) THEN
+	 -- список зданий (сооружений)
+		 !NameSystem[1] = ' '
+		 !NameSystem[2] = 'Автоматическая установка порошкового пожаротушения'
+		 !NameSystem[3] = 'Внутренняя система противопожарного водоснабжения'
+		 !NameSystem[4] = 'Установка газового пожаротушения главного корпуса'
+		 !NameSystem[5] = 'Система вентиляции главного корпуса'
+ 		 !NameSystem[6] = 'Система отопления главного корпуса'
+     ELSEIF ( ( '$!NameStationDtext1' EQ 'Казанская ТЭЦ-3' ) AND ( '$!NameBuildDtext' EQ 'ГДКС' ) ) THEN 
+		 !NameSystem[1] = ' '
+		 !NameSystem[2] = 'Автоматическая установка пенного пожаротушения'
+	 ELSEIF ( ( '$!NameStationDtext1' EQ 'Казанская ТЭЦ-3' ) AND ( '$!NameBuildDtext' EQ 'Электротехническое здание' ) ) THEN 
+ 		 !NameSystem[1] = ' '
+		 !NameSystem[2] = 'Автоматическая установка водяного пожаротушения. Блочный повышающий трансформатор '
+		 !NameSystem[3] = 'Автоматическое газовое пожаротушение'
+	 ELSEIF ( ( '$!NameStationDtext1' EQ 'Казанская ТЭЦ-3' ) AND ( '$!NameBuildDtext' EQ 'Внешняя инфраструктура' ) ) THEN 	 
+ 		 !NameSystem[1] = ' '
+		 !NameSystem[2] = 'Эстакада технологических трубопроводов'
+	 ELSEIF ( ( '$!NameStationDtext1' EQ 'Казанская ТЭЦ-3' ) AND ( '$!NameBuildDtext' EQ 'Существующий главный корпус' ) ) THEN 		 
+		 !NameSystem[1] = ' '
+		 !NameSystem[2] = 'Парапроводы высокого давления'
+		 !NameSystem[3] = 'Паропроводы среднего давления'		 
+	 ELSE 
+		 !NameSystem[1] = ' '
+	 ENDIF
+	 !This.NameSystem.DText = !NameSystem	 
+Endmethod
+------------------------------------------------------------------------
+-- Method:		ApproveClash
+-- Description:	утверждение коллизий
+-- Method Type:	
+-- Arguments:	!MarkOfMethod - марка дл¤ обозначени¤ выбора действи¤ при нажатии на кнопку дл¤ одобрени¤ коллизий
+-- Return:		
+------------------------------------------------------------------------
+$(Define method .ApproveClash ( !MarkOfMethod is STRING ) 
+	 IF ( '$!MarkOfMethod' EQ 'ACTIVATE' ) THEN
+		 !NumberClashForApprove = !this.CollisionList.Val
+		 !TextClashForApprove = !this.CollisionList.DText[$!NumberClashForApprove]
+		 !ElemClashForApprove = PART ( '$!TextClashForApprove' , 1 , '' )
+		 DESCLASH
+			 APPROVE $!ElemClashForApprove
+			 HANDLE ANY
+				 !!Alert.Error ( 'Ќекорректно выбран элемент дл¤ одобрени¤ коллизии!' )
+				 EXIT
+				 RETURN
+			 ENDHANDLE
+		 EXIT
+	 ELSEIF ( '$!MarkOfMethod' EQ 'SAVE' ) THEN
+		 DESCLASH
+			 SAVE APP /E:\Temp\SaveApprovedClashes OVER
+		 EXIT
+	 ELSEIF ( '$!MarkOfMethod' EQ 'REMOVE' ) THEN
+		 DESCLASH
+			 REMOVE APPROVED ALL
+		 EXIT
+	 ELSEIF ( '$!MarkOfMethod' EQ 'LOADWITHOUTAPPROVE' ) THEN
+		 DESCLASH
+			 RESTORE  /E:\Temp\SaveApprovedClashes
+		 EXIT
+		 !this.CheckCollision()
+	 ENDIF
+Endmethod$)
+-------------------------------------------------------------------------
+-- Method:		Help
+-- Description:	запуск справки по форме BSSClashes
+-- Method Type:	
+-- Arguments:	
+-- Return:		
+-------------------------------------------------------------------------
+Define method .Help()
+	 syscom 'start iexplore \\ur02\Aveva_Project_new\NGMACRO\NETPMLLIB\addcomp\forms\HelpClashes.htm'
+Endmethod
+-------------------------------------------------------------------------
+Define method .MethodMapBuildMdb()
+	 MAP BUILD MDB
+Endmethod
