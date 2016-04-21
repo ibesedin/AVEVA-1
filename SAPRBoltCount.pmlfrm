@@ -1,44 +1,38 @@
 -----------------
 -- Author:          Sergey Belomestnykh
 -- Created:         27/01/2012
--- Debugging: 	
-             -- ИЗМЕНЕНИЯ:
-			 -- 	 	  19.07.12 - добавлен вывод общей массы равной 0.00 на шайбах и гайках (переменные lsaIniWeigNut и lsaIniWeigWash) в файл csv в случае, когда единичная масса этих элементов не задана
-			 --			  07.08.12 - добавлена возможность выбора нескольких элементов PIPE и BRAN
-			 --			  20.08.12 - изменен код для добавления информации о длине болта; предыдущий код  Replace ( '$!DetTextWithLengthBolt' , 'length', '$!lsaBlenDataBolt' ); обновленный Replace ( '$!DetTextWithLengthBolt' , 'g ', 'gx' & '$!lsaBlenDataBolt' )
-			 --			  02.10.12 - изменен формат вывода выбранных PIPE или BRAN в LIST; вместо референтного номера выводится тип и наименование элемента
 -- Description: 
--- Форма для подсчета болтовых соединений на фланцах и открытия спецификации
+-- Р¤РѕСЂРјР° РґР»СЏ РїРѕРґСЃС‡РµС‚Р° Р±РѕР»С‚РѕРІС‹С… СЃРѕРµРґРёРЅРµРЅРёР№ РЅР° С„Р»Р°РЅС†Р°С… Рё РѕС‚РєСЂС‹С‚РёСЏ СЃРїРµС†РёС„РёРєР°С†РёРё
 -----------------
 kill !!SAPRBoltCount
 setup form !!SAPRBoltCount size 35 2.5
-title 'Подсчет болтовых соединений'
+title 'РџРѕРґСЃС‡РµС‚ Р±РѕР»С‚РѕРІС‹С… СЃРѕРµРґРёРЅРµРЅРёР№'
 	 !!SAPRBoltCount.initcall = '!this.SAPRBoltCount()'
    frame .frame1 '' height 0.5
    !!MarkSelec = 'falseMark'
-	 para   .SelecPipe at x0.5 ymax text 'Выберите элементы'
-	 button .PipeSelec 'Добавить' at x 20 y0.5 width 28 height 1.0 CALL |!this.PipeSelec()|
+	 para   .SelecPipe at x0.5 ymax text 'Р’С‹Р±РµСЂРёС‚Рµ СЌР»РµРјРµРЅС‚С‹'
+	 button .PipeSelec 'Р”РѕР±Р°РІРёС‚СЊ' at x 20 y0.5 width 28 height 1.0 CALL |!this.PipeSelec()|
  	 PATH DOWN
      list .ElemList at x0 width 47 lines 5
  	 PATH DOWN
-	 button .ClearList 'Очистить список' at x34 width 14 height 0.8 CALL |!this.ElemList.clear()|
+	 button .ClearList 'РћС‡РёСЃС‚РёС‚СЊ СЃРїРёСЃРѕРє' at x34 width 14 height 0.8 CALL |!this.ElemList.clear()|
   exit
    PATH DOWN
    VDIST 0.1
    frame .frame2 '' height 0.5
-     para   .file at x0.5 ymax text 'Выберите csv файл:'
-     button .browse 'Обзор...' at x 14 y0.5 width 10 height 1.0
+     para   .file at x0.5 ymax text 'Р’С‹Р±РµСЂРёС‚Рµ csv С„Р°Р№Р»:'
+     button .browse 'РћР±Р·РѕСЂ...' at x 14 y0.5 width 10 height 1.0
 	 PATH RIGHT
 	 HDIST 1.0
- 	 button .BoltCount 'Подсчитать' width 10 height 1.0 CALL |!this.CountOfBolt()|
+ 	 button .BoltCount 'РџРѕРґСЃС‡РёС‚Р°С‚СЊ' width 10 height 1.0 CALL |!this.CountOfBolt()|
  	 HDIST 1.0
- 	 button .CreateSpec 'Cпецификация' width 10 height 1.0 CALL |!this.CreateSpecification()|
+ 	 button .CreateSpec 'CРїРµС†РёС„РёРєР°С†РёСЏ' width 10 height 1.0 CALL |!this.CreateSpecification()|
    exit
 	 PATH DOWN
-	 button .AttrFlan 'Просмотр атрибутов фланцев' width 20 height 0.8 CALL |!this.AttrFlange()|
+	 button .AttrFlan 'РџСЂРѕСЃРјРѕС‚СЂ Р°С‚СЂРёР±СѓС‚РѕРІ С„Р»Р°РЅС†РµРІ' width 20 height 0.8 CALL |!this.AttrFlange()|
 	 PATH RIGHT
 	 HDIST 10.0
-	 button .Help 'Справка' width 8 height 0.8 CALL |!this.Help()|
+	 button .Help 'РЎРїСЂР°РІРєР°' width 8 height 0.8 CALL |!this.Help()|
 	 HDIST 1.0
 	 button .Dismiss 'Dismiss' width 8 height 0.8 CANCEL
 	 PATH DOWN
@@ -47,15 +41,15 @@ exit
 -----------------
 Define Method .SAPRBoltCount()
 !this.browse.callback = '!!SAPRBoltCount.browse()'
-	 !AttrElem[1] = 'RefNo выбранных элементов PIPE или BRAN'
+	 !AttrElem[1] = 'RefNo РІС‹Р±СЂР°РЅРЅС‹С… СЌР»РµРјРµРЅС‚РѕРІ PIPE РёР»Рё BRAN'
 	 !this.ElemList.SetHeadings( !AttrElem )
 Endmethod
 -----------------
--- Метод для формирования массива выбранных элементов
+-- РњРµС‚РѕРґ РґР»СЏ С„РѕСЂРјРёСЂРѕРІР°РЅРёСЏ РјР°СЃСЃРёРІР° РІС‹Р±СЂР°РЅРЅС‹С… СЌР»РµРјРµРЅС‚РѕРІ
 Define Method .PipeSelec()
 
 	 IF ( ( TYPE OF CE NEQ 'PIPE' ) AND ( TYPE OF CE NEQ 'BRAN' ) ) THEN
-		 !!ALERT.ERROR ('Выбранный элемент не имеет тип PIPE или BRAN')
+		 !!ALERT.ERROR ('Р’С‹Р±СЂР°РЅРЅС‹Р№ СЌР»РµРјРµРЅС‚ РЅРµ РёРјРµРµС‚ С‚РёРї PIPE РёР»Рё BRAN')
 		 RETURN
 	 ENDIF
 
@@ -69,42 +63,42 @@ Define Method .PipeSelec()
 
 Endmethod
 -----------------
--- Метод для подсчета болтового соединения
+-- РњРµС‚РѕРґ РґР»СЏ РїРѕРґСЃС‡РµС‚Р° Р±РѕР»С‚РѕРІРѕРіРѕ СЃРѕРµРґРёРЅРµРЅРёСЏ
 Define Method .CountOfBolt()
-	 -- Условие для проверки выбора csv файла
+	 -- РЈСЃР»РѕРІРёРµ РґР»СЏ РїСЂРѕРІРµСЂРєРё РІС‹Р±РѕСЂР° csv С„Р°Р№Р»Р°
 	 IF ( Length('$!!FileBrowser.file') EQ 0 ) THEN
-		 !!ALERT.ERROR ('Файл csv не выбран!')
+		 !!ALERT.ERROR ('Р¤Р°Р№Р» csv РЅРµ РІС‹Р±СЂР°РЅ!')
 		 RETURN
      ENDIF
-	 -- Условие для проверки наличия в выбранном csv файле информации о болтовом соединении
+	 -- РЈСЃР»РѕРІРёРµ РґР»СЏ РїСЂРѕРІРµСЂРєРё РЅР°Р»РёС‡РёСЏ РІ РІС‹Р±СЂР°РЅРЅРѕРј csv С„Р°Р№Р»Рµ РёРЅС„РѕСЂРјР°С†РёРё Рѕ Р±РѕР»С‚РѕРІРѕРј СЃРѕРµРґРёРЅРµРЅРёРё
 	 IF ( !this.WorkWithFile() EQ 'falseCsv') THEN
-		 !!ALERT.ERROR ('Файл csv уже содержит информацию о болтовых соединениях!')
+		 !!ALERT.ERROR ('Р¤Р°Р№Р» csv СѓР¶Рµ СЃРѕРґРµСЂР¶РёС‚ РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ Р±РѕР»С‚РѕРІС‹С… СЃРѕРµРґРёРЅРµРЅРёСЏС…!')
 		 RETURN
 	 ENDIF
 	 !backTOCE = !!CE
-	 -- Условие для проверки типа текущего элемента
+	 -- РЈСЃР»РѕРІРёРµ РґР»СЏ РїСЂРѕРІРµСЂРєРё С‚РёРїР° С‚РµРєСѓС‰РµРіРѕ СЌР»РµРјРµРЅС‚Р°
 	 IF (( !!CE.TYPE NEQ 'PIPE') AND ( !!CE.TYPE NEQ 'BRAN')) THEN
-		 !!ALERT.ERROR ('Выбранный элемент не имеет тип PIPE или BRAN!')
+		 !!ALERT.ERROR ('Р’С‹Р±СЂР°РЅРЅС‹Р№ СЌР»РµРјРµРЅС‚ РЅРµ РёРјРµРµС‚ С‚РёРї PIPE РёР»Рё BRAN!')
 		 RETURN
 	 ENDIF
 
-	 -- Получение информации о количестве выбранных элементов
+	 -- РџРѕР»СѓС‡РµРЅРёРµ РёРЅС„РѕСЂРјР°С†РёРё Рѕ РєРѕР»РёС‡РµСЃС‚РІРµ РІС‹Р±СЂР°РЅРЅС‹С… СЌР»РµРјРµРЅС‚РѕРІ
 	 -- !PipeElemCount = !this.ElemList.Count
 	 -- !PipeElemSign = !this.ElemList.Rtext
 
-		 -- считывание массива из LIST с информацией о выбранных элементах
+		 -- СЃС‡РёС‚С‹РІР°РЅРёРµ РјР°СЃСЃРёРІР° РёР· LIST СЃ РёРЅС„РѕСЂРјР°С†РёРµР№ Рѕ РІС‹Р±СЂР°РЅРЅС‹С… СЌР»РµРјРµРЅС‚Р°С…
 		 !PipeElemRtext = !this.ElemList.Rtext
 
 		 !PipeElemCount = !PipeElemRtext.Size()
 
 		 DO !iPipeElem from 1 to $!PipeElemCount
-			 -- считывание имени проверяемых элементов
+			 -- СЃС‡РёС‚С‹РІР°РЅРёРµ РёРјРµРЅРё РїСЂРѕРІРµСЂСЏРµРјС‹С… СЌР»РµРјРµРЅС‚РѕРІ
 			 !PipeElemName[$!iPipeElem] = PART ( '$!PipeElemRtext[$!iPipeElem]' , 2 )
-			 -- получение RefNo по имени проверяемого элемента
+			 -- РїРѕР»СѓС‡РµРЅРёРµ RefNo РїРѕ РёРјРµРЅРё РїСЂРѕРІРµСЂСЏРµРјРѕРіРѕ СЌР»РµРјРµРЅС‚Р°
 			 !PipeElemSign[$!iPipeElem] = RefNo of $!PipeElemName[$!iPipeElem]
 		 ENDDO
 
-	 -- Считывание информации об элементах в PIPE и BRAN и помещение в отдельные массивы
+	 -- РЎС‡РёС‚С‹РІР°РЅРёРµ РёРЅС„РѕСЂРјР°С†РёРё РѕР± СЌР»РµРјРµРЅС‚Р°С… РІ PIPE Рё BRAN Рё РїРѕРјРµС‰РµРЅРёРµ РІ РѕС‚РґРµР»СЊРЅС‹Рµ РјР°СЃСЃРёРІС‹
 	 DO !ipipe from 1 to $!PipeElemCount
 		 $!PipeElemSign[$!ipipe]
 		 VAR !BMEM$!ipipe COLL ALL BRAN MEM FOR CE 
@@ -114,7 +108,7 @@ Define Method .CountOfBolt()
 	 !SizeArray = ARRAY ()
 	 !lsaBMEM = ARRAY ()
 
-	 -- Объединение элементов со всех BRAN и PIPE в один массив
+	 -- РћР±СЉРµРґРёРЅРµРЅРёРµ СЌР»РµРјРµРЅС‚РѕРІ СЃРѕ РІСЃРµС… BRAN Рё PIPE РІ РѕРґРёРЅ РјР°СЃСЃРёРІ
 	 DO !ipipe from 1 to $!PipeElemCount
 		 !InterArrays = !BMEM$!ipipe
 		 !SizeArray[$!ipipe] = !InterArrays.Size()
@@ -122,9 +116,9 @@ Define Method .CountOfBolt()
 			 !lsaBMEM.Append(!InterArrays[$!indexpipe])
 		 ENDDO
 	 ENDDO
-	 -- lsaBMEM - итоговый массив, содержащий все элементы
+	 -- lsaBMEM - РёС‚РѕРіРѕРІС‹Р№ РјР°СЃСЃРёРІ, СЃРѕРґРµСЂР¶Р°С‰РёР№ РІСЃРµ СЌР»РµРјРµРЅС‚С‹
 
-	 -- Массивы для помещения информации о болтах, гайках и шайбах в выходной файл
+	 -- РњР°СЃСЃРёРІС‹ РґР»СЏ РїРѕРјРµС‰РµРЅРёСЏ РёРЅС„РѕСЂРјР°С†РёРё Рѕ Р±РѕР»С‚Р°С…, РіР°Р№РєР°С… Рё С€Р°Р№Р±Р°С… РІ РІС‹С…РѕРґРЅРѕР№ С„Р°Р№Р»
 	 !BoltText = ARRAY()
 	 !NutText = ARRAY()
 	 !WashText = ARRAY()
@@ -133,14 +127,14 @@ Define Method .CountOfBolt()
 	 $!lsaBMEM[$!x]
      skip IF ( !!CE.Type NEQ 'FLAN' )
 		 $!lsaBMEM[$!x]
-		 -- Программная конструкция для исключения из подсчета второго фланца в соединении
+		 -- РџСЂРѕРіСЂР°РјРјРЅР°СЏ РєРѕРЅСЃС‚СЂСѓРєС†РёСЏ РґР»СЏ РёСЃРєР»СЋС‡РµРЅРёСЏ РёР· РїРѕРґСЃС‡РµС‚Р° РІС‚РѕСЂРѕРіРѕ С„Р»Р°РЅС†Р° РІ СЃРѕРµРґРёРЅРµРЅРёРё
 			 prev
 			 IF ( !!CE.Type NEQ 'GASK' ) THEN
 				 GOLABEL /L1
 			 ENDIF
 			 prev
 			 HANDLE (2,113)
-				 -- Имя ошибки: Cписок для BRANCH исчерпан
+				 -- РРјСЏ РѕС€РёР±РєРё: CРїРёСЃРѕРє РґР»СЏ BRANCH РёСЃС‡РµСЂРїР°РЅ
 				 GOLABEL /L1
 			 ENDHANDLE
 			 IF ( !!CE.Type EQ 'FLAN' ) THEN
@@ -150,35 +144,35 @@ Define Method .CountOfBolt()
 		 $!lsaBMEM[$!x]
 		 !N = $!N + 1
 	 !NameFlan = SUBSTRING ( FLNM of $!lsaBMEM[$!x] , 1 , 9 )
-	 -- Получение длины 3-го компонента (болта) болтового соединения в точке р2 элемента
+	 -- РџРѕР»СѓС‡РµРЅРёРµ РґР»РёРЅС‹ 3-РіРѕ РєРѕРјРїРѕРЅРµРЅС‚Р° (Р±РѕР»С‚Р°) Р±РѕР»С‚РѕРІРѕРіРѕ СЃРѕРµРґРёРЅРµРЅРёСЏ РІ С‚РѕС‡РєРµ СЂ2 СЌР»РµРјРµРЅС‚Р°
 	 VAR !lsaBLEN P2 BOLT 3 BLEN
 		 HANDLE (61, 638)
 			 !ErrorCE = !!CE
-			 !!ALERT.ERROR ('Фланец '&'$!ErrorCE'&' выбранного трубопровода не присоединен к оборудованию!')
+			 !!ALERT.ERROR ('Р¤Р»Р°РЅРµС† '&'$!ErrorCE'&' РІС‹Р±СЂР°РЅРЅРѕРіРѕ С‚СЂСѓР±РѕРїСЂРѕРІРѕРґР° РЅРµ РїСЂРёСЃРѕРµРґРёРЅРµРЅ Рє РѕР±РѕСЂСѓРґРѕРІР°РЅРёСЋ!')
 			 RETURN
 		 ENDHANDLE
-	 -- Получение диаметра 3-го компонента (болта) болтового соединения в точке р2 элемента
+	 -- РџРѕР»СѓС‡РµРЅРёРµ РґРёР°РјРµС‚СЂР° 3-РіРѕ РєРѕРјРїРѕРЅРµРЅС‚Р° (Р±РѕР»С‚Р°) Р±РѕР»С‚РѕРІРѕРіРѕ СЃРѕРµРґРёРЅРµРЅРёСЏ РІ С‚РѕС‡РєРµ СЂ2 СЌР»РµРјРµРЅС‚Р°
 	 VAR !lsaBDIA P2 BOLT 3 BDIA
-	 -- Получение ссылки на спецификацию, содержащую болтовые соединения
+	 -- РџРѕР»СѓС‡РµРЅРёРµ СЃСЃС‹Р»РєРё РЅР° СЃРїРµС†РёС„РёРєР°С†РёСЋ, СЃРѕРґРµСЂР¶Р°С‰СѓСЋ Р±РѕР»С‚РѕРІС‹Рµ СЃРѕРµРґРёРЅРµРЅРёСЏ
 	 VAR !lsaBSPEC BSPEC OF PSPEC OF OWNER
-	 -- Получение количества 1-ого компонента (гаек) болтового соединения в точке p2 элемента
+	 -- РџРѕР»СѓС‡РµРЅРёРµ РєРѕР»РёС‡РµСЃС‚РІР° 1-РѕРіРѕ РєРѕРјРїРѕРЅРµРЅС‚Р° (РіР°РµРє) Р±РѕР»С‚РѕРІРѕРіРѕ СЃРѕРµРґРёРЅРµРЅРёСЏ РІ С‚РѕС‡РєРµ p2 СЌР»РµРјРµРЅС‚Р°
 	 VAR !lsaNumbNut P2 BOLT1 NOFF
-	 -- Получение количества 2-ого компонента (шайб) болтового соединения в точке p2 элемента
+	 -- РџРѕР»СѓС‡РµРЅРёРµ РєРѕР»РёС‡РµСЃС‚РІР° 2-РѕРіРѕ РєРѕРјРїРѕРЅРµРЅС‚Р° (С€Р°Р№Р±) Р±РѕР»С‚РѕРІРѕРіРѕ СЃРѕРµРґРёРЅРµРЅРёСЏ РІ С‚РѕС‡РєРµ p2 СЌР»РµРјРµРЅС‚Р°
 	 VAR !lsaNumbWash P2 BOLT2 NOFF
-	 -- Получение количества болтов в болтовом соединении
+	 -- РџРѕР»СѓС‡РµРЅРёРµ РєРѕР»РёС‡РµСЃС‚РІР° Р±РѕР»С‚РѕРІ РІ Р±РѕР»С‚РѕРІРѕРј СЃРѕРµРґРёРЅРµРЅРёРё
 	 !lsaBTSE = !!CE.Spref.Catref.Blrf[1].Memb.Size()
 	 VAR !lsaBSPCO COLL ALL SPCO WITH ( ANSW OF OWNE of owne EQ $!lsaBDIA ) FOR $!lsaBSPEC
 		 DO !y from 1 to !lsaBSPCO.Size()
 			 $!lsaBSPCO[$!y]
 --			 $p $!lsaBSPCO[$!y]
--- ПОЛУЧЕНИЕ И ВЫВОД ИНФОРМАЦИИ ПО БОЛТАМ
+-- РџРћР›РЈР§Р•РќРР• Р Р’Р«Р’РћР” РРќР¤РћР РњРђР¦РР РџРћ Р‘РћР›РўРђРњ
 			 IF ( ( TANSW EQ 'A') AND ( TANSW OF OWNER EQ 'BOLT' ) ) THEN
-				 -- Получение таблиц длин и поиск номер полученной длины
+				 -- РџРѕР»СѓС‡РµРЅРёРµ С‚Р°Р±Р»РёС† РґР»РёРЅ Рё РїРѕРёСЃРє РЅРѕРјРµСЂ РїРѕР»СѓС‡РµРЅРЅРѕР№ РґР»РёРЅС‹
 				 !lsaIniLenNBolt  = !lsaBSPCO[$!y].Dbref().Bltref.Nstdb.Blen.FindFirst ( !lsaBLEN.Real() )
-				 -- Получение длина болта
+				 -- РџРѕР»СѓС‡РµРЅРёРµ РґР»РёРЅР° Р±РѕР»С‚Р°
 				 !lsaBlenDataBolt = blen [ $!lsaIniLenNBolt ] of nstdb of bltref of $!lsaBSPCO[$!y]
 --	 	 		 $p $!lsaBlenDataBolt
- 				 -- Получение детального текста
+ 				 -- РџРѕР»СѓС‡РµРЅРёРµ РґРµС‚Р°Р»СЊРЅРѕРіРѕ С‚РµРєСЃС‚Р°
 				 IF ( Detref EQ Nulref ) THEN
 					 !DetailTextOutBolt = '0.00'
 					 ELSEIF (  Rtext of Detref EQ '' ) THEN
@@ -191,7 +185,7 @@ Define Method .CountOfBolt()
 					 !DetailTextOutBolt = Replace ( '$!DetTextWithLengthBolt' , 'g ', 'gx' & '$!lsaBlenDataBolt' )
 --					 $p 3: $!DetailTextOutBolt
 				 ENDIF
-				 -- Получение материального текста
+				 -- РџРѕР»СѓС‡РµРЅРёРµ РјР°С‚РµСЂРёР°Р»СЊРЅРѕРіРѕ С‚РµРєСЃС‚Р°
 				 IF ( Matxt EQ Nulref ) THEN
 					 !lsaMatTextBolt = '0.00'
 					 ELSEIF (  Xtext of Matxt EQ '' ) THEN
@@ -199,15 +193,15 @@ Define Method .CountOfBolt()
 					 ELSE
 					 !lsaMatTextBolt = Xtext of Matxt
 				 ENDIF
-				 -- Получение единичной массы болта
+				 -- РџРѕР»СѓС‡РµРЅРёРµ РµРґРёРЅРёС‡РЅРѕР№ РјР°СЃСЃС‹ Р±РѕР»С‚Р°
 				 !lsaIniWeigUnitBolt = !lsaBSPCO[$!y].Dbref().Bltref.Nstdb.:studwei[$!lsaIniLenNBolt].Real()
-				 -- Получение общего веса болтов
+				 -- РџРѕР»СѓС‡РµРЅРёРµ РѕР±С‰РµРіРѕ РІРµСЃР° Р±РѕР»С‚РѕРІ
 				 !lsaIniWeigBolt  = !lsaBTSE.Real() * !lsaBSPCO[$!y].Dbref().Bltref.Nstdb.:studwei[$!lsaIniLenNBolt].Real()
-				 -- Формирование элемента массива для помещения в выходной файл
+				 -- Р¤РѕСЂРјРёСЂРѕРІР°РЅРёРµ СЌР»РµРјРµРЅС‚Р° РјР°СЃСЃРёРІР° РґР»СЏ РїРѕРјРµС‰РµРЅРёСЏ РІ РІС‹С…РѕРґРЅРѕР№ С„Р°Р№Р»
 				 !BoltText[$!x] = ( 'BOLT;'&'$!DetailTextOutBolt'&';'&'$!lsaMatTextBolt'&';0.00;0.00;'&'$!lsaIniWeigUnitBolt'&';'&'$!lsaBTSE'&';'&'$!lsaIniWeigBolt' )
--- ПОЛУЧЕНИЕ И ВЫВОД ИНФОРМАЦИИ ПО ГАЙКАМ
+-- РџРћР›РЈР§Р•РќРР• Р Р’Р«Р’РћР” РРќР¤РћР РњРђР¦РР РџРћ Р“РђР™РљРђРњ
 			 ELSEIF ( ( TANSW EQ 'A') AND ( TANSW OF OWNER EQ 'NUT' ) ) THEN
-			 	 -- Получение детального текста
+			 	 -- РџРѕР»СѓС‡РµРЅРёРµ РґРµС‚Р°Р»СЊРЅРѕРіРѕ С‚РµРєСЃС‚Р°
 				 IF ( Detref EQ Nulref ) THEN
 					 !DetTextNut = '0.00'
 					 ELSEIF (  Rtext of Detref EQ '' ) THEN
@@ -216,7 +210,7 @@ Define Method .CountOfBolt()
 					 !lsaDetTextNut = Rtext of Detref
 					 !DetTextNut = $!lsaDetTextNut
 				 ENDIF
- 				 -- Получение материального текста
+ 				 -- РџРѕР»СѓС‡РµРЅРёРµ РјР°С‚РµСЂРёР°Р»СЊРЅРѕРіРѕ С‚РµРєСЃС‚Р°
 				 IF ( Matxt EQ Nulref ) THEN
 					 !lsaMatTextNut = '0.00'
 					 ELSEIF (  Xtext of Matxt EQ '' ) THEN
@@ -224,7 +218,7 @@ Define Method .CountOfBolt()
 					 ELSE
 					 !lsaMatTextNut = Xtext of Matxt
 				 ENDIF
-				 -- Получение единичной массы элементов
+				 -- РџРѕР»СѓС‡РµРЅРёРµ РµРґРёРЅРёС‡РЅРѕР№ РјР°СЃСЃС‹ СЌР»РµРјРµРЅС‚РѕРІ
 				 IF ( CMPREF EQ Nulref ) THEN
 					 !OutWeigUnitNut = '0.00'
 					 !lsaIniWeigNut = '0.00'
@@ -236,11 +230,11 @@ Define Method .CountOfBolt()
 					 !OutWeigUnitNut = !lsaIniWeigUnitNut.String().After('( ').Before(' )')
 					 !lsaIniWeigNut = $!lsaNumbNut * $!lsaIniWeigUnitNut
 				 ENDIF
-				 -- Формирование элемента массива для помещения в выходной файл
+				 -- Р¤РѕСЂРјРёСЂРѕРІР°РЅРёРµ СЌР»РµРјРµРЅС‚Р° РјР°СЃСЃРёРІР° РґР»СЏ РїРѕРјРµС‰РµРЅРёСЏ РІ РІС‹С…РѕРґРЅРѕР№ С„Р°Р№Р»
 				 !NutText[$!x] = ( 'NUT;'&'$!DetTextNut'&';'&'$!lsaMatTextNut'&';0.00;0.00;'&'$!OutWeigUnitNut'&';'&'$!lsaNumbNut'&';'&'$!lsaIniWeigNut' )
--- ПОЛУЧЕНИЕ И ВЫВОД ИНФОРМАЦИИ ПО ШАЙБАМ
+-- РџРћР›РЈР§Р•РќРР• Р Р’Р«Р’РћР” РРќР¤РћР РњРђР¦РР РџРћ РЁРђР™Р‘РђРњ
 			 ELSEIF ( ( TANSW EQ 'A') AND ( TANSW OF OWNER EQ 'WASH' ) ) THEN
-				 -- Получение детального текста
+				 -- РџРѕР»СѓС‡РµРЅРёРµ РґРµС‚Р°Р»СЊРЅРѕРіРѕ С‚РµРєСЃС‚Р°
 				 IF ( Detref EQ Nulref ) THEN
 					 !DetTextNutWash = '0.00'
 					 ELSEIF (  Rtext of Detref EQ '' ) THEN
@@ -249,7 +243,7 @@ Define Method .CountOfBolt()
 					 !lsaDetTextNutWash = Rtext of Detref
 					 !DetTextNutWash = $!lsaDetTextNutWash
 				 ENDIF
-  				 -- Получение материального текста
+  				 -- РџРѕР»СѓС‡РµРЅРёРµ РјР°С‚РµСЂРёР°Р»СЊРЅРѕРіРѕ С‚РµРєСЃС‚Р°
 				 IF ( Matxt EQ Nulref ) THEN
 					 !lsaMatTextWash = '0.00'
 					 ELSEIF (  Xtext of Matxt EQ '' ) THEN
@@ -257,7 +251,7 @@ Define Method .CountOfBolt()
 					 ELSE
 					 !lsaMatTextWash = Xtext of Matxt
 				 ENDIF
-				 -- Получение единичной массы элементов
+				 -- РџРѕР»СѓС‡РµРЅРёРµ РµРґРёРЅРёС‡РЅРѕР№ РјР°СЃСЃС‹ СЌР»РµРјРµРЅС‚РѕРІ
  				 IF ( CMPREF EQ Nulref ) THEN
 					 !OutWeigUnitWash = '0.00'
 					 !lsaIniWeigWash = '0.00'
@@ -269,7 +263,7 @@ Define Method .CountOfBolt()
 					 !OutWeigUnitWash = !lsaIniWeigUnitWash.String().After('( ').Before(' )')
 					 !lsaIniWeigWash = $!lsaNumbWash * $!lsaIniWeigUnitWash
 				 ENDIF
- 				 -- Формирование элемента массива для помещения в выходной файл
+ 				 -- Р¤РѕСЂРјРёСЂРѕРІР°РЅРёРµ СЌР»РµРјРµРЅС‚Р° РјР°СЃСЃРёРІР° РґР»СЏ РїРѕРјРµС‰РµРЅРёСЏ РІ РІС‹С…РѕРґРЅРѕР№ С„Р°Р№Р»
 				 !WashText[$!x] = ( 'WASH;'&'$!DetTextNutWash'&';'&'$!lsaMatTextWash'&';0.00;0.00;'&'$!OutWeigUnitWash'&';'&'$!lsaNumbWash'&';'&'$!lsaIniWeigWash' )
 			 ENDIF
 		 ENDDO
@@ -279,20 +273,20 @@ Define Method .CountOfBolt()
 	 !NutText.Sort()
 	 !WashText.Sort()
 	 !this.WriteToCsv ( !BoltText , !NutText , !WashText )
-	 !!ALERT.MESSAGE ( 'Болты, гайки и шайбы подсчитаны на '& $!N &' фланцевых соединениях' )
+	 !!ALERT.MESSAGE ( 'Р‘РѕР»С‚С‹, РіР°Р№РєРё Рё С€Р°Р№Р±С‹ РїРѕРґСЃС‡РёС‚Р°РЅС‹ РЅР° '& $!N &' С„Р»Р°РЅС†РµРІС‹С… СЃРѕРµРґРёРЅРµРЅРёСЏС…' )
 $!backTOCE
 Endmethod
 -----------------
--- Метод для запсука xls файла спецификации
+-- РњРµС‚РѕРґ РґР»СЏ Р·Р°РїСЃСѓРєР° xls С„Р°Р№Р»Р° СЃРїРµС†РёС„РёРєР°С†РёРё
 Define Method .CreateSpecification()
-	 !st =  trim ( 'C:\DesignMac\Формирование_ЗакСпецификацииТмо.xls' )
+	 !st =  trim ( 'C:\DesignMac\Р¤РѕСЂРјРёСЂРѕРІР°РЅРёРµ_Р—Р°РєРЎРїРµС†РёС„РёРєР°С†РёРёРўРјРѕ.xls' )
 	 !st1 = 'start Excel ' & !st
 	 SYSCOM |$!st1|
 Endmethod
 -----------------
--- Метод для работы с внутренними файлами формы
+-- РњРµС‚РѕРґ РґР»СЏ СЂР°Р±РѕС‚С‹ СЃ РІРЅСѓС‚СЂРµРЅРЅРёРјРё С„Р°Р№Р»Р°РјРё С„РѕСЂРјС‹
 Define Method .WorkWithFile() is STRING
-	 -- Открытие, задание метода READ и закрытие исходного файла csv
+	 -- РћС‚РєСЂС‹С‚РёРµ, Р·Р°РґР°РЅРёРµ РјРµС‚РѕРґР° READ Рё Р·Р°РєСЂС‹С‚РёРµ РёСЃС…РѕРґРЅРѕРіРѕ С„Р°Р№Р»Р° csv
 		 !FileInput = object FILE('$!!FileBrowser.file')
 		 !FileInput.Open('READ')
 		 !Content = ARRAY()
@@ -300,11 +294,11 @@ Define Method .WorkWithFile() is STRING
 		 !FileInput.Close()
 		 !SizeContent = !Content.size()
 		 !Check = '$!Content[$!SizeContent]'
-	 -- Условие для определения наличия в исходном csv файле информации о болтовом соединении
+	 -- РЈСЃР»РѕРІРёРµ РґР»СЏ РѕРїСЂРµРґРµР»РµРЅРёСЏ РЅР°Р»РёС‡РёСЏ РІ РёСЃС…РѕРґРЅРѕРј csv С„Р°Р№Р»Рµ РёРЅС„РѕСЂРјР°С†РёРё Рѕ Р±РѕР»С‚РѕРІРѕРј СЃРѕРµРґРёРЅРµРЅРёРё
 	 IF ( matchw ( '$!Check','*WASH*' ) ) OR ( matchw ( '$!Check','*NUT*' ) ) OR ( matchw ( '$!Check','*BOLT*') ) THEN
 		 RETURN 'falseCsv'
 	 ENDIF
-	 -- Открытие и задание метода OVERWRITE (переписать) для файла NameCsv.txt, который хранит адрес директории файла report.scv
+	 -- РћС‚РєСЂС‹С‚РёРµ Рё Р·Р°РґР°РЅРёРµ РјРµС‚РѕРґР° OVERWRITE (РїРµСЂРµРїРёСЃР°С‚СЊ) РґР»СЏ С„Р°Р№Р»Р° NameCsv.txt, РєРѕС‚РѕСЂС‹Р№ С…СЂР°РЅРёС‚ Р°РґСЂРµСЃ РґРёСЂРµРєС‚РѕСЂРёРё С„Р°Р№Р»Р° report.scv
 		 !FileNameCsv = object FILE ( 'C:\DesignMac\NameCsv.txt' )
 		 !FileNameCsv.Open('OVERWRITE')
 		 !FileNameCsv.WriteRecord  ( '$!!FileBrowser.file' )
@@ -312,7 +306,7 @@ Define Method .WorkWithFile() is STRING
 		 RETURN 'trueCsv'
 Endmethod
 -----------------
--- Метод для записи информации о болтовых соединениях в выбранный csv файл
+-- РњРµС‚РѕРґ РґР»СЏ Р·Р°РїРёСЃРё РёРЅС„РѕСЂРјР°С†РёРё Рѕ Р±РѕР»С‚РѕРІС‹С… СЃРѕРµРґРёРЅРµРЅРёСЏС… РІ РІС‹Р±СЂР°РЅРЅС‹Р№ csv С„Р°Р№Р»
 Define Method .WriteToCsv( !BoltTextAppend is ARRAY , !NutTextAppend is ARRAY , !WashTextAppend is ARRAY )
 	 !FileInput = object FILE('$!!FileBrowser.file')
 	 !FileInput.Open('APPEND')
@@ -325,7 +319,7 @@ Define Method .WriteToCsv( !BoltTextAppend is ARRAY , !NutTextAppend is ARRAY , 
 	 !FileInput.Close()
 Endmethod
 -----------------
--- Метод для функционирования кнопки "Обзор" на форме
+-- РњРµС‚РѕРґ РґР»СЏ С„СѓРЅРєС†РёРѕРЅРёСЂРѕРІР°РЅРёСЏ РєРЅРѕРїРєРё "РћР±Р·РѕСЂ" РЅР° С„РѕСЂРјРµ
 Define Method  .Browse()
 !path = ( 'C:\' )
 !!FileBrowser ( !path , |*.csv| , || , TRUE , |!!FileBrowser.file| )
@@ -337,21 +331,21 @@ Endmethod
 -----------------
 Define Method  .AttrFlange()
 	 IF ( !!CE.TYPE NEQ 'FLAN') THEN
-		 !!ALERT.ERROR ('Выбранный элемент не имеет тип FLAN!')
+		 !!ALERT.ERROR ('Р’С‹Р±СЂР°РЅРЅС‹Р№ СЌР»РµРјРµРЅС‚ РЅРµ РёРјРµРµС‚ С‚РёРї FLAN!')
 		 RETURN
 	 ENDIF
 	 !DetTextFlan = DTXR OF CE
- 	 -- Получение длины 3-го компонента (болта) болтового соединения в точке р2 элемента
+ 	 -- РџРѕР»СѓС‡РµРЅРёРµ РґР»РёРЅС‹ 3-РіРѕ РєРѕРјРїРѕРЅРµРЅС‚Р° (Р±РѕР»С‚Р°) Р±РѕР»С‚РѕРІРѕРіРѕ СЃРѕРµРґРёРЅРµРЅРёСЏ РІ С‚РѕС‡РєРµ СЂ2 СЌР»РµРјРµРЅС‚Р°
 	 VAR !lsaBLEN P2 BOLT 3 BLEN
 		 HANDLE (61, 638)
 			 !ErrorCE = !!CE
-			 !!ALERT.ERROR ('Фланец '&'$!ErrorCE'&' выбранного трубопровода не присоединен к оборудованию!')
+			 !!ALERT.ERROR ('Р¤Р»Р°РЅРµС† '&'$!ErrorCE'&' РІС‹Р±СЂР°РЅРЅРѕРіРѕ С‚СЂСѓР±РѕРїСЂРѕРІРѕРґР° РЅРµ РїСЂРёСЃРѕРµРґРёРЅРµРЅ Рє РѕР±РѕСЂСѓРґРѕРІР°РЅРёСЋ!')
 			 RETURN
 		 ENDHANDLE
-	 -- Получение диаметра 3-го компонента (болта) болтового соединения в точке р2 элемента
+	 -- РџРѕР»СѓС‡РµРЅРёРµ РґРёР°РјРµС‚СЂР° 3-РіРѕ РєРѕРјРїРѕРЅРµРЅС‚Р° (Р±РѕР»С‚Р°) Р±РѕР»С‚РѕРІРѕРіРѕ СЃРѕРµРґРёРЅРµРЅРёСЏ РІ С‚РѕС‡РєРµ СЂ2 СЌР»РµРјРµРЅС‚Р°
 	 VAR !lsaBDIA P2 BOLT 3 BDIA
 	 !lsaBTSE = !!CE.Spref.Catref.Blrf[1].Memb.Size()
-!this.Message1.val = '$!DetTextFlan'&'  Болты:'&' диам. '&'$!lsaBDIA'&'мм '&' длин. '&'$!lsaBLEN'&'мм '&' кол. '&'$!lsaBTSE'&'шт.'
+!this.Message1.val = '$!DetTextFlan'&'  Р‘РѕР»С‚С‹:'&' РґРёР°Рј. '&'$!lsaBDIA'&'РјРј '&' РґР»РёРЅ. '&'$!lsaBLEN'&'РјРј '&' РєРѕР». '&'$!lsaBTSE'&'С€С‚.'
 Endmethod
 -----------------
 --Define Method .Dismiss()
